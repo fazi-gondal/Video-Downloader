@@ -1,0 +1,53 @@
+name: CI
+
+# Runs the full test suite (plus lint and type checks) on every pull
+# request and on pushes to main. Make it a required status check in
+# Settings → Branches so PRs cannot merge unless it passes.
+#
+# Version policy: everything pinned on purpose; bump manually.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+env:
+  # Keep in sync with .python-version
+  PYTHON_VERSION: "3.13"
+  # Keep in sync with the uv version used locally
+  UV_VERSION: "0.11.2"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Tests, lint and types
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6.0.3
+
+      - uses: actions/setup-python@v6.3.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      # enable-cache persists uv's package cache between runs, keyed on
+      # uv.lock, so dependencies are not re-downloaded every time.
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.3.2
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+
+      # --frozen installs exactly what uv.lock pins; it never re-resolves.
+      - name: Install project dependencies
+        run: uv sync --frozen
+
+      - name: Run unit tests
+        run: uv run pytest
+
+      - name: Lint (ruff)
+        run: uv run ruff check .
+
+      - name: Type check (mypy)
+        run: uv run mypy video_downloader

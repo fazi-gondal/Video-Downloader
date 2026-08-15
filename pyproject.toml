@@ -1,0 +1,61 @@
+[project]
+name = "video-downloader"
+version = "1.0.0"
+description = "Advanced multimedia download manager based on yt-dlp, FFmpeg, and Flet"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.13"
+dependencies = [
+    "flet[all]>=0.85.3,<0.86",
+    "imageio-ffmpeg>=0.5",
+    "platformdirs>=4.10.0",
+    "static-ffmpeg>=3.0",
+    "yt-dlp[default]>=2026.7.4",
+]
+
+[dependency-groups]
+dev = [
+    "mypy>=2.2.0",
+    "pytest>=9.1.1",
+    "ruff>=0.15.21",
+]
+
+# Packaging metadata for `flet build <platform>`
+[tool.flet]
+org = "com.wachu985"
+product = "Video Downloader"
+company = "fazigondal"
+copyright = "Copyright (C) 2026 Faizan Gondal"
+
+# Keep the native window hidden until the Python side reveals it
+# (app.py sets page.window.visible = True once the frameless UI is built).
+# Trade-off: if the embedded Python runtime fails to boot, the packaged
+# app's error screen stays in a hidden window and the app appears not to
+# open — acceptable, matches dev-mode FLET_APP_HIDDEN behavior.
+[tool.flet.app]
+hide_window_on_start = true
+
+# Pre-compile .py -> .pyc at build time: faster cold start (no runtime
+# bytecode compilation on first launch, less antivirus churn on Windows).
+[tool.flet.compile]
+app = true
+packages = true
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "SIM"]
+ignore = ["SIM117"]
+
+[tool.mypy]
+python_version = "3.13"
+warn_unused_ignores = true
+check_untyped_defs = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

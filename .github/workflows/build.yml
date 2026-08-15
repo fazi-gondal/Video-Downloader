@@ -1,0 +1,301 @@
+name: Build releases
+
+# `flet build` can only compile for the OS **and architecture** it runs on
+# (no cross-compilation), so every platform/arch pair is built on its own
+# native runner:
+#   macOS   : arm64 (macos-latest) + x86_64 (macos-15-intel)
+#   Windows : x64 (windows-latest) + arm64 (windows-11-arm)
+#   Linux   : amd64 (ubuntu-latest) + arm64 (ubuntu-24.04-arm)
+# Note: the arm64 Linux/Windows runners are free for public repos only.
+#
+# Triggers:
+#   - Pushing a tag `v*` builds all three platforms and attaches the binaries
+#     to the GitHub release for that tag.
+#   - Manual runs (workflow_dispatch) upload the binaries as workflow artifacts.
+#
+# Version policy: everything here is PINNED on purpose (actions, uv, Python).
+# Nothing auto-updates; bump versions manually when you decide to.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+# The default GITHUB_TOKEN is read-only; creating/updating a release and
+# uploading its assets requires write access to repository contents.
+permissions:
+  contents: write
+
+env:
+  # Keep in sync with .python-version
+  PYTHON_VERSION: "3.13"
+  # Keep in sync with the uv version used locally
+  UV_VERSION: "0.11.2"
+  # The Windows runner console defaults to cp1252; flet's progress spinner
+  # prints Unicode (●) and crashes rich without this.
+  PYTHONUTF8: "1"
+  PYTHONIOENCODING: "utf-8"
+
+jobs:
+  # Quality gate: no release build starts unless the whole test suite,
+  # lint and type checks pass.
+  test:
+    name: Tests, lint and types
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6.0.3
+
+      - uses: actions/setup-python@v6.3.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.3.2
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+
+      - name: Install project dependencies
+        run: uv sync --frozen
+
+      - name: Run unit tests
+        run: uv run pytest
+
+      - name: Lint (ruff)
+        run: uv run ruff check .
+
+      - name: Type check (mypy)
+        run: uv run mypy video_downloader
+
+  build:
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        # `arch` follows each platform's naming convention (it ends up in
+        # the artifact/package names): macOS arm64|x86_64, Windows
+        # x64|arm64, Linux (Debian) amd64|arm64. `appimage_arch` is the
+        # same CPU in AppImage/uname convention (x86_64|aarch64).
+        include:
+          - os: macos-latest # Apple Silicon
+            platform: macos
+            arch: arm64
+          - os: macos-15-intel
+            platform: macos
+            arch: x86_64
+          - os: windows-latest
+            platform: windows
+            arch: x64
+          - os: windows-11-arm
+            platform: windows
+            arch: arm64
+          - os: ubuntu-latest
+            platform: linux
+            arch: amd64
+            appimage_arch: x86_64
+          - os: ubuntu-24.04-arm
+            platform: linux
+            arch: arm64
+            appimage_arch: aarch64
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v6.0.3
+
+      - name: Install system dependencies (Linux)
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build libgtk-3-dev libmpv-dev mpv
+
+      - uses: actions/setup-python@v6.3.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      # enable-cache persists uv's package cache between runs, keyed on
+      # uv.lock, so Python dependencies are not re-downloaded every build.
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.3.2
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+
+      # flet installs its pinned Flutter SDK under ~/flutter/<version> and
+      # pub packages under ~/.pub-cache; caching both skips the ~1 GB SDK
+      # download on every run. The key follows uv.lock because the required
+      # Flutter version is determined by the pinned flet release.
+      - name: Cache Flutter SDK
+        uses: actions/cache@v6.1.0
+        with:
+          path: |
+            ~/flutter
+            ~/.pub-cache
+          key: flutter-sdk-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('uv.lock') }}
+          restore-keys: |
+            flutter-sdk-${{ runner.os }}-${{ runner.arch }}-
+
+      # --frozen installs exactly what uv.lock pins; it never re-resolves.
+      - name: Install project dependencies
+        run: uv sync --frozen
+
+      # --yes lets flet download the exact Flutter SDK version required by
+      # the pinned flet release (deterministic: it comes from uv.lock).
+      - name: Build (${{ matrix.platform }} ${{ matrix.arch }})
+        run: uv run flet build ${{ matrix.platform }} -v --yes
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: video-downloader-${{ matrix.platform }}-${{ matrix.arch }}
+          path: build/${{ matrix.platform }}
+          if-no-files-found: error
+
+      # ------------------------------------------------------------------
+      # Native release packages (tags only): .dmg / .deb / setup.exe
+
+      - name: Package .dmg (macOS)
+        if: startsWith(github.ref, 'refs/tags/v') && matrix.platform == 'macos'
+        shell: bash
+        run: |
+          cd build
+          # Locate the .app regardless of how flet named it
+          APP_PATH=$(find macos -maxdepth 2 -name "*.app" -print -quit)
+          if [ -z "$APP_PATH" ]; then
+            echo "No .app bundle found under build/macos:" >&2
+            find macos -maxdepth 3 -print >&2
+            exit 1
+          fi
+          mkdir dmg-root
+          cp -R "$APP_PATH" "dmg-root/Video Downloader.app"
+          ln -s /Applications dmg-root/Applications
+          hdiutil create -volname "Video Downloader" -srcfolder dmg-root \
+            -ov -format UDZO "VideoDownloader-macos-${{ matrix.arch }}.dmg"
+
+      - name: Package .deb (Linux)
+        if: startsWith(github.ref, 'refs/tags/v') && matrix.platform == 'linux'
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          PKG=build/pkg
+          LIB=$PKG/usr/lib/video-downloader
+          mkdir -p $PKG/DEBIAN $LIB $PKG/usr/bin \
+            $PKG/usr/share/applications \
+            $PKG/usr/share/icons/hicolor/1024x1024/apps
+          cp -r build/linux/* $LIB/
+
+          # Locate the main executable regardless of how flet named it
+          BIN=$(find $LIB -maxdepth 1 -type f -perm -111 -print -quit)
+          if [ -z "$BIN" ]; then
+            echo "No executable found under build/linux:" >&2
+            find $LIB -maxdepth 2 -print >&2
+            exit 1
+          fi
+          BIN_NAME=$(basename "$BIN")
+          ln -s "/usr/lib/video-downloader/$BIN_NAME" $PKG/usr/bin/video-downloader
+
+          cp assets/icon.png \
+            $PKG/usr/share/icons/hicolor/1024x1024/apps/video-downloader.png
+
+          cat > $PKG/usr/share/applications/video-downloader.desktop <<EOF
+          [Desktop Entry]
+          Name=Video Downloader
+          Comment=Advanced media download manager
+          Exec=/usr/bin/video-downloader
+          Icon=video-downloader
+          Terminal=false
+          Type=Application
+          Categories=AudioVideo;Network;
+          EOF
+
+          cat > $PKG/DEBIAN/control <<EOF
+          Package: video-downloader
+          Version: $VERSION
+          Section: video
+          Priority: optional
+          Architecture: ${{ matrix.arch }}
+          Depends: libgtk-3-0t64 | libgtk-3-0, libmpv2 | libmpv1
+          Maintainer: wachu985 <wachu985@users.noreply.github.com>
+          Description: Advanced media download manager
+           Desktop app to download and convert media, powered by yt-dlp,
+           FFmpeg and Flet.
+          EOF
+
+          dpkg-deb --build --root-owner-group $PKG \
+            "build/VideoDownloader-linux-${{ matrix.arch }}.deb"
+
+      - name: Package .AppImage (Linux)
+        if: startsWith(github.ref, 'refs/tags/v')  && matrix.platform == 'linux'
+        shell: bash
+        run: |
+          # appimagetool pinned to release 1.9.1 (the project moved from the
+          # old AppImageKit repo to AppImage/appimagetool with fixed tags);
+          # the release ships one binary per CPU (x86_64 / aarch64)
+          curl -fsSL -o appimagetool \
+            "https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-${{ matrix.appimage_arch }}.AppImage"
+          chmod +x appimagetool
+
+          APPDIR=build/VideoDownloader.AppDir
+          LIB=$APPDIR/usr/lib/video-downloader
+          mkdir -p $LIB
+          cp -r build/linux/* $LIB/
+
+          BIN=$(find $LIB -maxdepth 1 -type f -perm -111 -print -quit)
+          if [ -z "$BIN" ]; then
+            echo "No executable found under build/linux" >&2
+            exit 1
+          fi
+          BIN_NAME=$(basename "$BIN")
+
+          cat > $APPDIR/AppRun <<EOF
+          #!/bin/sh
+          HERE="\$(dirname "\$(readlink -f "\$0")")"
+          exec "\$HERE/usr/lib/video-downloader/$BIN_NAME" "\$@"
+          EOF
+          chmod +x $APPDIR/AppRun
+
+          cat > $APPDIR/video-downloader.desktop <<EOF
+          [Desktop Entry]
+          Name=Video Downloader
+          Comment=Advanced media download manager
+          Exec=video-downloader
+          Icon=video-downloader
+          Terminal=false
+          Type=Application
+          Categories=AudioVideo;Network;
+          EOF
+
+          cp assets/icon.png $APPDIR/video-downloader.png
+
+          # --appimage-extract-and-run avoids needing FUSE on the runner
+          ARCH=${{ matrix.appimage_arch }} ./appimagetool --appimage-extract-and-run \
+            $APPDIR "build/VideoDownloader-linux-${{ matrix.appimage_arch }}.AppImage"
+
+      - name: Package installer .exe (Windows)
+        if: startsWith(github.ref, 'refs/tags/v') && matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          # windows-latest ships Inno Setup preinstalled; windows-11-arm
+          # does not, so install it via Chocolatey when missing (the x86
+          # compiler runs fine under arm64 emulation).
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) {
+            choco install innosetup --no-progress -y
+          }
+          $exe = (Get-ChildItem build/windows -Filter *.exe | Select-Object -First 1).Name
+          if (-not $exe) { throw "No .exe found under build/windows" }
+          $version = "$env:GITHUB_REF_NAME".TrimStart("v")
+          & $iscc `
+            /DAppExe=$exe /DAppVersion=$version /DAppArch=${{ matrix.arch }} `
+            packaging\windows\installer.iss
+
+      - name: Attach binaries to the release (tags only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v3.0.1
+        with:
+          # The native packages built on this runner:
+          # .dmg (macOS) / .deb + .AppImage (Linux) / setup .exe (Windows)
+          files: |
+            build/VideoDownloader-*.dmg
+            build/VideoDownloader-*.deb
+            build/VideoDownloader-*.AppImage
+            build/VideoDownloader-*-setup.exe
