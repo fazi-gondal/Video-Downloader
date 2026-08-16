@@ -7,7 +7,7 @@ license = "MIT"
 license-files = ["LICENSE"]
 requires-python = ">=3.13"
 dependencies = [
-    "flet[all]>=0.86.5,<0.87",
+    "flet[cli,desktop]>=0.86.5,<0.87",
     "imageio-ffmpeg>=0.5",
     "platformdirs>=4.10.0",
     "static-ffmpeg>=3.0",
@@ -35,12 +35,30 @@ copyright = "Copyright (C) 2026 Faizan Gondal"
 # open — acceptable, matches dev-mode FLET_APP_HIDDEN behavior.
 [tool.flet.app]
 hide_window_on_start = true
+exclude = [
+    ".git",
+    ".github",
+    ".pytest_cache",
+    ".venv",
+    "build",
+    "dist",
+    "packaging",
+    "tests",
+    "CHANGELOG.md",
+    "CLAUDE.md",
+    "CONTRIBUTING.md",
+    "INSTALL.md",
+    "LICENSE",
+    "README.md",
+    "uv.lock",
+]
 
 # Pre-compile .py -> .pyc at build time: faster cold start (no runtime
 # bytecode compilation on first launch, less antivirus churn on Windows).
 [tool.flet.compile]
 app = true
 packages = true
+cleanup = true
 
 [tool.ruff]
 line-length = 100
