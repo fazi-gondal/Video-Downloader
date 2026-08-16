@@ -58,7 +58,7 @@ class DownloadRequest:
     subtitle_langs: tuple[str, ...] = ("all",)
     multi_audio: bool = False
     selected_audio_track_ids: tuple[str, ...] = ()
-    embed_thumbnail: bool = False
+    embed_thumbnail: bool = True
     embed_metadata: bool = False
 
     # Playlist context (affects output template)

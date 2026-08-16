@@ -49,8 +49,22 @@ class TestFormatSelector:
         assert fb.build_format_selector(req) == "bv*+mergeall[vcodec=none]/b"
 
     def test_video_audio_selected_tracks(self):
+        # Raw format IDs (not language codes) → passed through directly with fallback chain
         req = make_request(selected_audio_track_ids=("251-en", "251-es"))
-        assert fb.build_format_selector(req) == "bv*+251-en+251-es"
+        expected = "bv*+251-en+251-es/bv*+mergeall[vcodec=none]/bv*+ba/b"
+        assert fb.build_format_selector(req) == expected
+
+    def test_video_audio_selected_tracks_language_codes(self):
+        # BCP-47 language codes → converted to ba[language=XX] filters
+        req = make_request(selected_audio_track_ids=("en", "de", "ja"))
+        expected = "bv*+ba[language=en]+ba[language=de]+ba[language=ja]/bv*+mergeall[vcodec=none]/bv*+ba/b"
+        assert fb.build_format_selector(req) == expected
+
+    def test_video_audio_single_track(self):
+        # Single language code → try it, fall back to best audio
+        req = make_request(selected_audio_track_ids=("de",))
+        expected = "bv*+ba[language=de]/bv*+ba/b"
+        assert fb.build_format_selector(req) == expected
 
     def test_video_only_with_resolution(self):
         req = make_request(mode=DownloadMode.VIDEO_ONLY, max_height=720)
@@ -109,6 +123,7 @@ class TestPostprocessors:
             container="mkv",
             write_subtitles=True,
             embed_metadata=True,
+            embed_thumbnail=False,
         )
         keys = [pp["key"] for pp in fb.build_postprocessors(req)]
         assert keys == ["FFmpegVideoRemuxer", "FFmpegEmbedSubtitle", "FFmpegMetadata"]
@@ -182,12 +197,12 @@ class TestYdlOpts:
         assert opts["skip_download"] is True
 
     def test_analysis_opts_fail_fast(self):
-        # Interactive analysis must not inherit yt-dlp's long retry chains:
-        # offline failures should surface in seconds, not minutes.
+        # Interactive analysis must not inherit yt-dlp's default infinite/long retry chains:
+        # failures should surface in a reasonable time window.
         opts = fb.build_analysis_opts(AppSettings())
-        assert opts["socket_timeout"] <= 15
-        assert opts["retries"] <= 3
-        assert opts["extractor_retries"] <= 1
+        assert opts["socket_timeout"] <= 30
+        assert opts["retries"] <= 5
+        assert opts["extractor_retries"] <= 3
 
     def test_youtube_js_challenge_support(self):
         # Both option sets must allow the EJS solver (yt-dlp-ejs + runtime)

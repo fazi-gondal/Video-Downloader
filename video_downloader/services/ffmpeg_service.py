@@ -342,3 +342,99 @@ class FFmpegService:
             raise ConversionError(f"ffmpeg exited with code {returncode}", detail=stderr[-2000:])
         if on_progress:
             on_progress(1.0)
+
+    def merge_audio_tracks(
+        self,
+        base_file: Path,
+        extra_audio: list[tuple[Path, str]],  # (file, language_tag)
+        output: Path,
+        first_lang: str = "",
+        cancel_event: threading.Event | None = None,
+    ) -> None:
+        """Merge *base_file* (video + first audio) with *extra_audio* tracks into *output* MKV.
+
+        Uses FFmpeg copy-mux so there is no re-encoding.  Each audio track
+        is tagged with its BCP-47 language code so media players can label them.
+
+        Args:
+            base_file:   Path to the MKV that already contains the video and the
+                         first (primary) audio stream.
+            extra_audio: List of ``(audio_file, language_tag)`` pairs.  Each
+                         audio_file is a single-stream file (e.g. .webm opus).
+            output:      Final output path (always .mkv).
+            first_lang:  Language tag for the base audio track (audio stream 0).
+            cancel_event: Optional threading event; kill ffmpeg if set.
+        """
+        location = self.resolve()
+        if not location.ffmpeg_path:
+            raise FFmpegNotFoundError("ffmpeg is not available")
+
+        cmd = [str(location.ffmpeg_path), "-y", "-hide_banner", "-nostats"]
+
+        # Input files
+        cmd += ["-i", str(base_file)]
+        for audio_path, _ in extra_audio:
+            cmd += ["-i", str(audio_path)]
+
+        # Map video, first audio, and subtitles from base file, then each extra audio input
+        cmd += ["-map", "0:v"]
+        cmd += ["-map", "0:a:0"]
+        cmd += ["-map", "0:s?"]
+        for idx in range(1, len(extra_audio) + 1):
+            cmd += ["-map", f"{idx}:a:0"]
+
+        # Copy video and subtitles losslessly; encode audio to 192k AAC for universal playback
+        cmd += ["-c:v", "copy"]
+        cmd += ["-c:s", "copy"]
+        cmd += ["-c:a", "aac", "-b:a", "192k"]
+
+        # Ensure only the first audio stream has default disposition so players switch cleanly
+        cmd += ["-disposition:a", "0"]
+        cmd += ["-disposition:a:0", "default"]
+
+        lang_titles = {
+            "en": "English", "de": "German", "fr": "French", "es": "Spanish",
+            "it": "Italian", "pt": "Portuguese", "ru": "Russian", "ja": "Japanese",
+            "ko": "Korean", "zh": "Chinese", "zh-Hans": "Chinese (Simplified)",
+            "zh-Hant": "Chinese (Traditional)", "hi": "Hindi", "ar": "Arabic",
+            "bn": "Bangla", "tr": "Turkish", "pl": "Polish", "vi": "Vietnamese",
+            "id": "Indonesian", "th": "Thai", "ta": "Tamil", "te": "Telugu",
+            "ml": "Malayalam", "ur": "Urdu", "nl": "Dutch",
+        }
+
+        # Tag each audio stream with its language code and title (:s:a:N specifies N-th audio stream)
+        if first_lang:
+            cmd += ["-metadata:s:a:0", f"language={first_lang}"]
+            if title := lang_titles.get(first_lang):
+                cmd += ["-metadata:s:a:0", f"title={title}"]
+        for i, (_, lang_tag) in enumerate(extra_audio):
+            audio_stream_idx = 1 + i
+            if lang_tag:
+                cmd += [f"-metadata:s:a:{audio_stream_idx}", f"language={lang_tag}"]
+                if title := lang_titles.get(lang_tag):
+                    cmd += [f"-metadata:s:a:{audio_stream_idx}", f"title={title}"]
+
+        cmd += [str(output)]
+
+        logger.info("Merging %d audio tracks: %s", len(extra_audio) + 1, " ".join(cmd))
+        process = subprocess.Popen(
+            cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+        )
+        try:
+            # communicate() drains stdout and stderr concurrently, avoiding OS pipe deadlocks
+            _, stderr = process.communicate()
+        except Exception:
+            if process.poll() is None:
+                process.kill()
+                process.wait()
+            raise
+
+        if process.returncode != 0:
+            output.unlink(missing_ok=True)
+            err_msg = (stderr or "")[-2000:]
+            logger.error("ffmpeg merge failed (%s): %s", process.returncode, err_msg)
+            raise ConversionError(
+                f"ffmpeg merge exited with code {process.returncode}", detail=err_msg
+            )
+        logger.info("Merged output: %s", output)
+

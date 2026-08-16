@@ -206,7 +206,12 @@ class ConfigView(ft.Column):
         self._audio_track_cbs: list[ft.Checkbox] = []
         if isinstance(media, MediaInfo) and media.audio_tracks:
             for track in media.audio_tracks:
-                cb = ft.Checkbox(label=track["label"], data=track["format_id"], value=False)
+                # Store the language code as the selector key — it is stable
+                # across yt-dlp sessions (unlike indexed format IDs like '251-0'
+                # which vanish without a JS runtime).  Fall back to format_id
+                # only for tracks that have no language (rare default-only videos).
+                selector_key = track.get("language") or track["format_id"]
+                cb = ft.Checkbox(label=track["label"], data=selector_key, value=False)
                 self._audio_track_cbs.append(cb)
 
         self._audio_tracks_custom_container = ft.Column(
@@ -567,8 +572,19 @@ class ConfigView(ft.Column):
             single_audio_id = audio_format_id
             track_ids = selected_audio_ids
             if len(selected_audio_ids) == 1 and not audio_format_id:
-                single_audio_id = selected_audio_ids[0]
-                track_ids = ()
+                key = selected_audio_ids[0]
+                # If the key looks like a raw format ID (digits / dashes), put
+                # it in audio_format_id so yt-dlp uses it directly.
+                # If it is a language code (e.g. "de", "zh-Hant"), keep it in
+                # selected_audio_track_ids so format_builder converts it to the
+                # stable ba[language=XX] filter.
+                import re as _re
+                if _re.match(r"^[a-z]{2,3}(-[A-Za-z]{2,4})?$", key):
+                    track_ids = selected_audio_ids   # language → keep in track_ids
+                else:
+                    single_audio_id = key            # raw format ID → legacy path
+                    track_ids = ()
+
 
             return DownloadRequest(
                 url=url,

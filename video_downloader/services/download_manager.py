@@ -35,8 +35,16 @@ class DownloadEngine(Protocol):
     def cleanup_partials(output_dir: Path, media_id: str) -> None: ...
 
 
+from video_downloader.config.constants import DEFAULT_MAX_CONCURRENT
+
+
 class DownloadManager:
-    def __init__(self, engine: DownloadEngine, bus: EventBus, max_concurrent: int = 2) -> None:
+    def __init__(
+        self,
+        engine: DownloadEngine,
+        bus: EventBus,
+        max_concurrent: int = DEFAULT_MAX_CONCURRENT,
+    ) -> None:
         self._engine = engine
         self._bus = bus
         self._queue: queue.Queue[DownloadTask | None] = queue.Queue()

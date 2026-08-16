@@ -6,6 +6,7 @@ No I/O here: everything is unit-testable without network or yt-dlp itself.
 from __future__ import annotations
 
 import logging
+import re
 from pathlib import Path
 from typing import Any
 
@@ -16,6 +17,22 @@ from video_downloader.config.constants import (
 )
 from video_downloader.config.settings import AppSettings
 from video_downloader.models.download import DownloadMode, DownloadRequest
+
+
+# BCP-47 language code pattern (e.g. 'en', 'de', 'zh-Hant', 'pt-BR')
+_LANG_CODE_RE = re.compile(r"^[a-z]{2,3}(-[A-Za-z]{2,4})?$")
+
+
+def _audio_selector(track_key: str) -> str:
+    """Return the yt-dlp format filter for one audio track selector key.
+
+    Language codes (e.g. ``'en'``, ``'zh-Hant'``) are converted to the stable
+    ``ba[language=XX]`` filter.  Raw format IDs (e.g. ``'251-0'``, ``'140'``)
+    are passed through unchanged.
+    """
+    if _LANG_CODE_RE.match(track_key):
+        return f"ba[language={track_key}]"
+    return track_key
 
 
 def build_format_selector(req: DownloadRequest) -> str:
@@ -42,11 +59,28 @@ def build_format_selector(req: DownloadRequest) -> str:
             return f"bv{filters}/bv/b{filters}/b"
         return "bv/b"
 
-    # Specific multiple audio tracks selected
+    # Specific multiple audio tracks selected by the user
     if req.selected_audio_track_ids and req.mode is DownloadMode.VIDEO_AUDIO:
-        audio_part = "+".join(req.selected_audio_track_ids)
+        # Each key is either a BCP-47 language code ("de", "zh-Hant") or a
+        # raw format ID.  _audio_selector() converts language codes to the
+        # ba[language=XX] filter which is stable across yt-dlp sessions.
+        audio_parts = [_audio_selector(k) for k in req.selected_audio_track_ids]
+        audio_part = "+".join(audio_parts)
         video_part = req.video_format_id or (f"bv*{filters}" if filters else "bv*")
-        return f"{video_part}+{audio_part}"
+
+        if len(req.selected_audio_track_ids) == 1:
+            # Single track: try language/ID filter, fall back to best audio
+            return f"{video_part}+{audio_part}/{video_part}+ba/b"
+
+        # Multiple tracks: try exact language selection first.
+        # If some languages are unavailable (PO token / JS challenge failure),
+        # fall back to mergeall which downloads ALL available audio streams.
+        # Final fallback: best single audio so the download never fails entirely.
+        return (
+            f"{video_part}+{audio_part}"
+            f"/{video_part}+mergeall[vcodec=none]"
+            f"/{video_part}+ba/b"
+        )
 
     # VIDEO_AUDIO presets: best video matching filters + best audio, with fallbacks
     if req.multi_audio:
@@ -65,6 +99,11 @@ def build_postprocessors(
     """Postprocessor chain; converters first, then metadata/thumbnail embedding."""
     postprocessors: list[dict[str, Any]] = []
 
+    # When multiple audio tracks are merged, MKV is the effective container
+    # regardless of what the user chose (only MKV reliably stores multi-audio).
+    is_multi_audio = req.multi_audio or len(req.selected_audio_track_ids) > 1
+    effective_container = "mkv" if (is_multi_audio and req.mode is not DownloadMode.AUDIO_ONLY) else req.container
+
     if req.mode is DownloadMode.AUDIO_ONLY:
         pp: dict[str, Any] = {
             "key": "FFmpegExtractAudio",
@@ -73,10 +112,10 @@ def build_postprocessors(
         if req.audio_bitrate_kbps and req.audio_format not in LOSSLESS_AUDIO_FORMATS:
             pp["preferredquality"] = str(req.audio_bitrate_kbps)
         postprocessors.append(pp)
-    elif req.container:
-        # Remux into the requested container when streams allow it losslessly
+    elif effective_container:
+        # Remux into the effective container when streams allow it losslessly
         postprocessors.append(
-            {"key": "FFmpegVideoRemuxer", "preferedformat": req.container}
+            {"key": "FFmpegVideoRemuxer", "preferedformat": effective_container}
         )
 
     if req.write_subtitles and req.mode is not DownloadMode.AUDIO_ONLY:
@@ -86,13 +125,15 @@ def build_postprocessors(
 
     if req.embed_metadata:
         postprocessors.append({"key": "FFmpegMetadata", "add_metadata": True})
-    if req.embed_thumbnail and _thumbnail_embeddable(req, have_ffprobe):
+    if req.embed_thumbnail and _thumbnail_embeddable(req, have_ffprobe, effective_container):
         postprocessors.append({"key": "EmbedThumbnail", "already_have_thumbnail": False})
 
     return postprocessors
 
 
-def _thumbnail_embeddable(req: DownloadRequest, have_ffprobe: bool) -> bool:
+def _thumbnail_embeddable(
+    req: DownloadRequest, have_ffprobe: bool, effective_container: str | None = None
+) -> bool:
     """Whether EmbedThumbnail can run for this request.
 
     Matroska embedding calls ffprobe fatally; without it, skip the
@@ -101,7 +142,8 @@ def _thumbnail_embeddable(req: DownloadRequest, have_ffprobe: bool) -> bool:
     if have_ffprobe:
         return True
     target = (
-        req.audio_format if req.mode is DownloadMode.AUDIO_ONLY else req.container
+        req.audio_format if req.mode is DownloadMode.AUDIO_ONLY
+        else (effective_container or req.container)
     ).lower()
     if target in ("mkv", "mka", "webm"):
         logging.getLogger(__name__).warning(
@@ -154,12 +196,21 @@ def build_ydl_opts(
         opts["ffmpeg_location"] = ffmpeg_location
 
     if req.mode is not DownloadMode.AUDIO_ONLY and req.container:
-        opts["merge_output_format"] = req.container
-        # Prefer codecs that fit the target container without re-encoding
-        if req.container == "mp4":
-            opts["format_sort"] = ["vcodec:h264", "acodec:m4a"]
-        elif req.container == "webm":
-            opts["format_sort"] = ["vcodec:vp9", "acodec:opus"]
+        # When multiple audio tracks are selected, only MKV can hold them all.
+        # MP4 / WebM silently drop extra audio streams during FFmpeg merge.
+        is_multi_audio = (
+            req.multi_audio
+            or len(req.selected_audio_track_ids) > 1
+        )
+        effective_container = "mkv" if is_multi_audio else req.container
+        opts["merge_output_format"] = effective_container
+        # Only apply codec-preference sort when NOT using explicit track IDs
+        # (explicit IDs are already exact; format_sort can fight them).
+        if not req.selected_audio_track_ids and not req.multi_audio:
+            if req.container == "mp4":
+                opts["format_sort"] = ["vcodec:h264", "acodec:m4a"]
+            elif req.container == "webm":
+                opts["format_sort"] = ["vcodec:vp9", "acodec:opus"]
 
     if req.embed_thumbnail:
         opts["writethumbnail"] = True
@@ -172,8 +223,11 @@ def build_ydl_opts(
         else:
             opts["subtitleslangs"] = list(req.subtitle_langs)
 
-    if (req.multi_audio or len(req.selected_audio_track_ids) > 1) and req.mode is not DownloadMode.AUDIO_ONLY:
-        opts["audio_multistreams"] = True
+    # audio_multistreams must be set whenever more than one audio track is
+    # involved — otherwise FFmpeg only keeps the first stream it encounters.
+    if req.mode is not DownloadMode.AUDIO_ONLY:
+        if req.multi_audio or len(req.selected_audio_track_ids) > 1:
+            opts["audio_multistreams"] = True
 
     if settings.proxy:
         opts["proxy"] = settings.proxy
@@ -211,9 +265,9 @@ def build_analysis_opts(settings: AppSettings) -> dict[str, Any]:
         "quiet": True,
         "noprogress": True,
         "no_color": True,
-        "socket_timeout": 10,
-        "retries": 2,
-        "extractor_retries": 1,
+        "socket_timeout": 30,
+        "retries": 5,
+        "extractor_retries": 3,
         "remote_components": ["ejs:github"],
         "js_runtimes": _get_js_runtimes(),
         # Expose all language dub audio tracks (e.g. MrBeast has 22 languages)

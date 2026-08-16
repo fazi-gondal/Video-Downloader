@@ -28,7 +28,7 @@ class AppSettings:
     write_subtitles: bool = False
     subtitle_langs: list[str] = field(default_factory=lambda: ["all"])
     multi_audio: bool = False
-    embed_thumbnail: bool = False
+    embed_thumbnail: bool = True
     embed_metadata: bool = True
     theme_mode: str = "system"  # system | light | dark
 

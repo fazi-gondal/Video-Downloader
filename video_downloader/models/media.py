@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any
@@ -109,80 +110,137 @@ class MediaInfo:
                 name = entries[0].get("name") if entries else code
                 subtitles[str(code)] = f"{name or code} (auto)"
 
-        audio_tracks: list[dict[str, Any]] = []
-        seen_fids = set()
+        # Collect audio streams, keeping the highest quality stream per track.
+        # Prefer Opus (webm) streams when available; fall back to AAC/other formats.
+        _COMMON_LANG_NAMES: dict[str, str] = {
+            "en": "English", "de": "German", "fr": "French", "es": "Spanish",
+            "it": "Italian", "pt": "Portuguese", "ru": "Russian", "ja": "Japanese",
+            "ko": "Korean", "zh": "Chinese", "zh-Hans": "Chinese (Simplified)",
+            "zh-Hant": "Chinese (Traditional)", "hi": "Hindi", "ar": "Arabic",
+            "bn": "Bangla", "tr": "Turkish", "pl": "Polish", "vi": "Vietnamese",
+            "id": "Indonesian", "th": "Thai", "ta": "Tamil", "te": "Telugu",
+            "ml": "Malayalam", "ur": "Urdu", "nl": "Dutch", "sv": "Swedish",
+            "no": "Norwegian", "da": "Danish", "fi": "Finnish", "cs": "Czech",
+            "el": "Greek", "he": "Hebrew", "hu": "Hungarian", "ro": "Romanian",
+            "uk": "Ukrainian",
+        }
+
+        def _clean_track_name(l_code: str, f_note: str, l_name: str) -> str:
+            clean = re.sub(r',\s*(low|medium|high|ultralow|drc|DRC)\b', '', f_note, flags=re.I).strip()
+            if 'original (default)' in clean.lower():
+                clean = re.sub(r'original\s*\(default\)', '(Original)', clean, flags=re.I).strip()
+            elif clean.lower() in ('original', 'default'):
+                clean = 'Original Audio'
+            if clean and clean.lower() not in ('low', 'medium', 'high', 'drc'):
+                return clean
+            if l_name:
+                return l_name
+            return _COMMON_LANG_NAMES.get(l_code, l_code or "Audio")
+
+        _track_best: dict[str, dict[str, Any]] = {}
+
         for f in info.get("formats") or []:
-            if _classify_stream(f) == StreamType.AUDIO_ONLY or f.get("resolution") == "audio only":
-                fid = str(f.get("format_id", ""))
-                if not fid or fid in seen_fids:
-                    continue
-                seen_fids.add(fid)
+            if not (_classify_stream(f) == StreamType.AUDIO_ONLY or f.get("resolution") == "audio only"):
+                continue
 
-                lang = f.get("language") or f.get("language_preference") or ""
-                lang_name = f.get("language_name") or ""
-                note = f.get("format_note") or ""
-                ext = f.get("ext") or ""
-                acodec = f.get("acodec") or ""
-                if acodec and acodec != "none":
-                    acodec_clean = acodec.split(".")[0]
+            fid = str(f.get("format_id", ""))
+            if not fid:
+                continue
+
+            ext = f.get("ext") or ""
+            if ext == "mhtml":
+                continue
+
+            acodec = f.get("acodec") or ""
+            acodec_base = acodec.split(".")[0].lower() if acodec and acodec != "none" else ""
+            is_opus = (ext == "webm") or (acodec_base == "opus")
+
+            lang = str(f.get("language") or f.get("language_preference") or "")
+            note = f.get("format_note") or ""
+            lang_name = f.get("language_name") or ""
+            track_name = _clean_track_name(lang, note, lang_name)
+
+            track_key = f"{lang}_{track_name}" if (lang and track_name) else (lang or track_name or fid)
+            abr = float(f.get("abr") or f.get("tbr") or 0.0)
+
+            existing = _track_best.get(track_key)
+            if existing is None:
+                replace = True
+            else:
+                existing_is_opus = existing.get("is_opus", False)
+                existing_abr = float(existing.get("abr") or 0.0)
+                if is_opus and not existing_is_opus:
+                    replace = True
+                elif is_opus == existing_is_opus and abr > existing_abr:
+                    replace = True
                 else:
-                    acodec_clean = ext
+                    replace = False
 
-                abr = f.get("abr") or f.get("tbr")
-                channels = f.get("audio_channels")
-                asr = f.get("asr")
-
-                parts = []
-                # 1. Language / Dub info
-                if lang_name:
-                    desc = str(lang_name)
-                    if note and note.lower() not in str(lang_name).lower():
-                        desc += f" ({note})"
-                    parts.append(desc)
-                elif lang:
-                    desc = str(lang)
-                    if note:
-                        desc += f" ({note})"
-                    parts.append(desc)
-                elif note:
-                    parts.append(str(note))
-                else:
-                    parts.append("Audio")
-
-                # 2. Container & Codec
-                if ext and acodec_clean and acodec_clean != ext:
-                    parts.append(f"{ext} ({acodec_clean})")
-                elif ext:
-                    parts.append(ext)
-
-                # 3. Bitrate / Channels / Sampling
-                if abr:
-                    parts.append(f"{int(abr)} kbps")
-                if channels and channels > 2:
-                    parts.append(f"{channels}ch")
-                if asr:
-                    parts.append(f"{asr // 1000}kHz" if asr >= 1000 else f"{asr}Hz")
-
-                # 4. Format ID
-                parts.append(f"[id: {fid}]")
-
-                label = " · ".join(parts)
-
-                audio_tracks.append({
+            if replace:
+                _track_best[track_key] = {
+                    "_raw": f,
                     "format_id": fid,
-                    "language": str(lang),
-                    "label": label,
+                    "language": lang,
+                    "track_name": track_name,
                     "abr": abr,
                     "ext": ext,
                     "acodec": acodec,
                     "note": note,
-                })
+                    "is_opus": is_opus,
+                    "asr": f.get("asr"),
+                    "audio_channels": f.get("audio_channels"),
+                    "lang_name": lang_name,
+                }
 
-        # Sort audio tracks: original/named languages first, then descending bitrate
+        audio_tracks: list[dict[str, Any]] = []
+        for track_key, best in _track_best.items():
+            fid = best["format_id"]
+            lang = best["language"]
+            track_name = best["track_name"]
+            note = best["note"]
+            ext = best["ext"]
+            acodec = best["acodec"]
+            abr = best["abr"]
+            asr = best["asr"]
+            channels = best["audio_channels"]
+            acodec_base = acodec.split(".")[0] if acodec and acodec != "none" else ext
+
+            parts: list[str] = [track_name]
+
+            # 2. Container & codec
+            if ext and acodec_base and acodec_base != ext:
+                parts.append(f"{ext} ({acodec_base})")
+            elif ext:
+                parts.append(ext)
+
+            # 3. Quality metrics
+            if abr:
+                parts.append(f"{int(abr)} kbps")
+            if channels and channels > 2:
+                parts.append(f"{channels}ch")
+            if asr:
+                parts.append(f"{asr // 1000}kHz" if asr >= 1000 else f"{asr}Hz")
+
+            # 4. Format ID
+            parts.append(f"[id: {fid}]")
+
+            label = " · ".join(parts)
+
+            audio_tracks.append({
+                "format_id": fid,
+                "language": lang,
+                "label": label,
+                "abr": abr,
+                "ext": ext,
+                "acodec": acodec,
+                "note": note,
+            })
+
+        # Sort: original/named languages first (by language code), then descending bitrate
         def _track_sort_key(t: dict[str, Any]) -> tuple[int, str, float]:
-            lang = t.get("language") or ""
-            abr = float(t.get("abr") or 0.0)
-            return (0 if lang else 1, lang, -abr)
+            l = t.get("language") or ""
+            a = float(t.get("abr") or 0.0)
+            return (0 if l else 1, l, -a)
 
         audio_tracks.sort(key=_track_sort_key)
 

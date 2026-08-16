@@ -82,6 +82,48 @@ class TestMediaInfo:
         assert info.title == "Video de prueba"
         assert len(info.formats) == 1
 
+    def test_audio_tracks_parsing(self):
+        info = MediaInfo.from_ytdlp(
+            {
+                "id": "test123",
+                "title": "Multi Audio Video",
+                "formats": [
+                    {
+                        "format_id": "251-en",
+                        "ext": "webm",
+                        "vcodec": "none",
+                        "acodec": "opus",
+                        "language": "en",
+                        "format_note": "English original (default), medium",
+                        "abr": 128.0,
+                    },
+                    {
+                        "format_id": "251-de",
+                        "ext": "webm",
+                        "vcodec": "none",
+                        "acodec": "opus",
+                        "language": "de",
+                        "format_note": "German, medium",
+                        "abr": 128.0,
+                    },
+                    {
+                        "format_id": "251-ja",
+                        "ext": "webm",
+                        "vcodec": "none",
+                        "acodec": "opus",
+                        "language": "ja",
+                        "format_note": "Japanese, medium",
+                        "abr": 128.0,
+                    },
+                ],
+            }
+        )
+        assert len(info.audio_tracks) == 3
+        labels = [t["label"] for t in info.audio_tracks]
+        assert any("English (Original)" in l for l in labels)
+        assert any("German" in l for l in labels)
+        assert any("Japanese" in l for l in labels)
+
     def test_missing_fields(self):
         info = MediaInfo.from_ytdlp({"id": "x"})
         assert info.title == "(untitled)"
