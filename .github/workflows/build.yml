@@ -3,9 +3,8 @@ name: Build releases
 # `flet build` can only compile for the OS **and architecture** it runs on
 # (no cross-compilation), so every platform/arch pair is built on its own
 # native runner:
-#   macOS   : arm64 (macos-latest) + x86_64 (macos-15-intel)
 #   Windows : x64 (windows-latest) + arm64 (windows-11-arm)
-#   Linux   : amd64 (ubuntu-latest) + arm64 (ubuntu-24.04-arm)
+#   macOS/Linux builds are intentionally commented out for now.
 # Note: the arm64 Linux/Windows runners are free for public repos only.
 #
 # Triggers:
@@ -71,31 +70,30 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # `arch` follows each platform's naming convention (it ends up in
-        # the artifact/package names): macOS arm64|x86_64, Windows
-        # x64|arm64, Linux (Debian) amd64|arm64. `appimage_arch` is the
-        # same CPU in AppImage/uname convention (x86_64|aarch64).
+        # `arch` follows each platform's naming convention and ends up in
+        # the artifact/package names. macOS/Linux entries are kept commented
+        # below so they can be re-enabled later without rebuilding the matrix.
         include:
-          - os: macos-latest # Apple Silicon
-            platform: macos
-            arch: arm64
-          - os: macos-15-intel
-            platform: macos
-            arch: x86_64
+          # - os: macos-latest # Apple Silicon
+          #   platform: macos
+          #   arch: arm64
+          # - os: macos-15-intel
+          #   platform: macos
+          #   arch: x86_64
           - os: windows-latest
             platform: windows
             arch: x64
           - os: windows-11-arm
             platform: windows
             arch: arm64
-          - os: ubuntu-latest
-            platform: linux
-            arch: amd64
-            appimage_arch: x86_64
-          - os: ubuntu-24.04-arm
-            platform: linux
-            arch: arm64
-            appimage_arch: aarch64
+          # - os: ubuntu-latest
+          #   platform: linux
+          #   arch: amd64
+          #   appimage_arch: x86_64
+          # - os: ubuntu-24.04-arm
+          #   platform: linux
+          #   arch: arm64
+          #   appimage_arch: aarch64
 
     runs-on: ${{ matrix.os }}
 
@@ -288,14 +286,32 @@ jobs:
             /DAppExe=$exe /DAppVersion=$version /DAppArch=${{ matrix.arch }} `
             packaging\windows\installer.iss
 
+      - name: Package installer .zip (Windows)
+        if: startsWith(github.ref, 'refs/tags/v') && matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem build -Filter "VideoDownloader-*-setup.exe" | Select-Object -First 1
+          if (-not $installer) {
+            throw "No setup .exe found under build"
+          }
+          $zip = "build/VideoDownloader-windows-${{ matrix.arch }}-setup.zip"
+          if (Test-Path $zip) {
+            Remove-Item $zip -Force
+          }
+          $sevenZip = (Get-Command 7z -ErrorAction SilentlyContinue).Source
+          if (-not $sevenZip) {
+            $sevenZip = "${env:ProgramFiles}\7-Zip\7z.exe"
+          }
+          if (-not (Test-Path $sevenZip)) {
+            throw "7-Zip not found on runner"
+          }
+          & $sevenZip a -tzip -mx=9 $zip $installer.FullName
+
       - name: Attach binaries to the release (tags only)
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v3.0.1
         with:
           # The native packages built on this runner:
-          # .dmg (macOS) / .deb + .AppImage (Linux) / setup .exe (Windows)
+          # setup .exe compressed into .zip (Windows)
           files: |
-            build/VideoDownloader-*.dmg
-            build/VideoDownloader-*.deb
-            build/VideoDownloader-*.AppImage
-            build/VideoDownloader-*-setup.exe
+            build/VideoDownloader-*-setup.zip
