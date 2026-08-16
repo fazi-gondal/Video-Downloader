@@ -311,6 +311,7 @@ jobs:
         uses: softprops/action-gh-release@v3.0.1
         with:
           # The native packages built on this runner:
-          # setup .exe compressed into .zip (Windows)
+          # setup .exe + setup .exe compressed into .zip (Windows)
           files: |
+            build/VideoDownloader-*-setup.exe
             build/VideoDownloader-*-setup.zip

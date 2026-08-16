@@ -305,11 +305,35 @@ class AppShell:
 
 async def main(page: ft.Page) -> None:
     shell = AppShell(page)
+    ready = False
     try:
         shell.build()
+        ready = True
+    except Exception:
+        logger.exception("App shell failed during startup")
+        page.title = APP_TITLE
+        page.padding = 24
+        page.controls.clear()
+        page.add(
+            ft.Column(
+                [
+                    ft.Text(
+                        "Video Downloader could not start",
+                        size=24,
+                        weight=ft.FontWeight.BOLD,
+                    ),
+                    ft.Text(
+                        "Please restart the app. If this keeps happening, check app.log "
+                        "in the Windows log folder.",
+                    ),
+                ],
+                spacing=12,
+            )
+        )
     finally:
         if not page.web:
             page.window.visible = True
             page.window.focused = True
             page.update()
+    if ready:
         page.run_task(shell.after_first_paint)
