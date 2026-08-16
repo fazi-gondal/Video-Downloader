@@ -286,6 +286,7 @@ class HistoryView(ft.Column):
             audio_format=entry.audio_format or "mp3",
             embed_metadata=self.ctx.settings.embed_metadata,
             embed_thumbnail=self.ctx.settings.embed_thumbnail,
+            prefer_vp9_video=self.ctx.settings.prefer_vp9_video,
         )
         self.ctx.download_manager.enqueue(request)
         self.on_redownload()

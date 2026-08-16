@@ -302,6 +302,8 @@ class YtdlpService:
             main_opts["format"] = main_fmt
             main_opts["merge_output_format"] = "mkv"
             main_opts["audio_multistreams"] = False
+            if req.prefer_vp9_video and not req.video_format_id:
+                main_opts["format_sort"] = list(format_builder.VP9_FORMAT_SORT)
             main_opts["progress_hooks"] = [_make_progress_hook(0)]
             main_opts["postprocessors"] = format_builder.build_postprocessors(
                 req, have_ffprobe=self._ffmpeg.has_ffprobe

@@ -21,7 +21,7 @@ from video_downloader.config.constants import (
 )
 from video_downloader.core.errors import AppError
 from video_downloader.models.download import DownloadMode, DownloadRequest
-from video_downloader.models.media import FormatInfo, MediaInfo, PlaylistInfo
+from video_downloader.models.media import FormatInfo, MediaInfo, PlaylistInfo, StreamType
 from video_downloader.services.ytdlp_service import formats_for_display
 from video_downloader.ui import theme
 from video_downloader.ui.app import AppContext
@@ -33,6 +33,7 @@ from video_downloader.ui.components.option_cards import ModeSelector
 from video_downloader.ui.components.status_pill import PILL_CORAL, StatusPill
 from video_downloader.ui.texts import t
 from video_downloader.ui.utils import safe_update
+from video_downloader.utils.formatting import human_bytes
 
 _CUSTOM_QUALITY = "Custom"
 
@@ -135,7 +136,9 @@ class ConfigView(ft.Column):
             columns=3,
             on_change=lambda v: self._refresh_summary(),
         )
-        self._fps_cg = ChipGroup(list(FPS_PRESETS))
+        self._fps_cg = ChipGroup(
+            list(FPS_PRESETS), on_change=lambda v: self._refresh_summary()
+        )
         self._video_options = ft.Row(
             [
                 ft.Column(
@@ -171,7 +174,11 @@ class ConfigView(ft.Column):
             on_change=self._on_quality_change,
         )
         self._custom_bitrate = ft.TextField(
-            label=t("custom_bitrate"), width=240, visible=False, value="192"
+            label=t("custom_bitrate"),
+            width=240,
+            visible=False,
+            value="192",
+            on_change=lambda e: self._refresh_summary(),
         )
         self._audio_options = ft.Column(
             [
@@ -206,12 +213,13 @@ class ConfigView(ft.Column):
         self._audio_track_cbs: list[ft.Checkbox] = []
         if isinstance(media, MediaInfo) and media.audio_tracks:
             for track in media.audio_tracks:
-                # Store the language code as the selector key — it is stable
-                # across yt-dlp sessions (unlike indexed format IDs like '251-0'
-                # which vanish without a JS runtime).  Fall back to format_id
-                # only for tracks that have no language (rare default-only videos).
                 selector_key = track.get("language") or track["format_id"]
-                cb = ft.Checkbox(label=track["label"], data=selector_key, value=False)
+                cb = ft.Checkbox(
+                    label=track["label"],
+                    data=selector_key,
+                    value=False,
+                    on_change=lambda e: self._refresh_summary(),
+                )
                 self._audio_track_cbs.append(cb)
 
         self._audio_tracks_custom_container = ft.Column(
@@ -263,7 +271,12 @@ class ConfigView(ft.Column):
         self._subtitle_cbs: list[ft.Checkbox] = []
         if isinstance(media, MediaInfo) and media.subtitles:
             for code, name in media.subtitles.items():
-                cb = ft.Checkbox(label=f"{name} ({code})", data=code, value=False)
+                cb = ft.Checkbox(
+                    label=f"{name} ({code})",
+                    data=code,
+                    value=False,
+                    on_change=lambda e: self._refresh_summary(),
+                )
                 self._subtitle_cbs.append(cb)
 
         self._custom_subtitles_field = ft.TextField(
@@ -271,6 +284,7 @@ class ConfigView(ft.Column):
             hint_text="e.g. en, es, ar",
             value="",
             width=280,
+            on_change=lambda e: self._refresh_summary(),
         )
 
         self._subtitles_custom_container = ft.Column(
@@ -327,10 +341,14 @@ class ConfigView(ft.Column):
 
         # --- Extras -------------------------------------------------------
         self._thumbnail_cb = ft.Checkbox(
-            label=t("embed_thumbnail"), value=settings.embed_thumbnail
+            label=t("embed_thumbnail"),
+            value=settings.embed_thumbnail,
+            on_change=lambda e: self._refresh_summary(),
         )
         self._metadata_cb = ft.Checkbox(
-            label=t("embed_metadata"), value=settings.embed_metadata
+            label=t("embed_metadata"),
+            value=settings.embed_metadata,
+            on_change=lambda e: self._refresh_summary(),
         )
         extras = ft.Column(
             [
@@ -362,14 +380,41 @@ class ConfigView(ft.Column):
             label, icon=ft.Icons.DOWNLOAD, on_click=self._on_download
         )
         self._summary_row = ft.Row(spacing=8, vertical_alignment=ft.CrossAxisAlignment.CENTER)
+        self._size_text = ft.Text(
+            "",
+            size=12.5,
+            weight=ft.FontWeight.W_600,
+            color=PILL_CORAL,
+        )
+        self._size_pill = ft.Container(
+            content=ft.Row(
+                [
+                    ft.Icon(
+                        ft.Icons.DATA_SAVER_OFF_ROUNDED,
+                        size=15,
+                        color=PILL_CORAL,
+                    ),
+                    self._size_text,
+                ],
+                spacing=6,
+                alignment=ft.MainAxisAlignment.CENTER,
+            ),
+            bgcolor=ft.Colors.with_opacity(0.12, PILL_CORAL),
+            border=ft.Border.all(1, ft.Colors.with_opacity(0.35, PILL_CORAL)),
+            border_radius=ft.BorderRadius.all(6),
+            padding=ft.Padding.symmetric(vertical=6, horizontal=12),
+            visible=False,
+        )
         bottom_bar = ft.Container(
             content=ft.Row(
                 [
                     self._summary_row,
                     ft.Container(expand=True),
+                    self._size_pill,
                     self._download_button,
                 ],
                 vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                spacing=10,
             ),
             padding=ft.Padding.symmetric(vertical=12, horizontal=16),
             bgcolor=ft.Colors.SURFACE_CONTAINER_LOW,
@@ -404,10 +449,12 @@ class ConfigView(ft.Column):
 
     def _on_audio_track_mode_change(self, value: str) -> None:
         self._audio_tracks_custom_container.visible = (value == t("audio_tracks_mode_custom"))
+        self._refresh_summary()
         safe_update(self)
 
     def _on_subtitles_mode_change(self, value: str) -> None:
         self._subtitles_custom_container.visible = (value == t("subtitles_mode_custom"))
+        self._refresh_summary()
         safe_update(self)
 
     def _on_mode_change(self, mode: DownloadMode) -> None:
@@ -423,8 +470,240 @@ class ConfigView(ft.Column):
         self._refresh_summary()
         safe_update(self)
 
+    def _calculate_estimated_size(self) -> tuple[int | None, bool]:
+        """Estimate total download file size in bytes based on selected options."""
+        media = self.ctx.current_media
+        if media is None:
+            return None, False
+
+        # Playlist calculation
+        if isinstance(media, PlaylistInfo):
+            entries = self.ctx.selected_entries or media.entries
+            durations = [e.duration for e in entries if e.duration]
+            if not durations:
+                return None, False
+            total_dur = sum(durations)
+            mode = self._mode_selector.value
+            if mode is DownloadMode.AUDIO_ONLY:
+                kbps = 192
+            else:
+                h = RESOLUTION_PRESETS.get(self._resolution_cg.value or "") or 1080
+                kbps = self._approx_bitrate_for_height(h)
+            return int(kbps * 1000 * total_dur / 8), True
+
+        if not isinstance(media, MediaInfo):
+            return None, False
+
+        duration = media.duration or 0.0
+        formats = media.formats or []
+
+        # 1. Manual format selection (if user picked custom rows from format table)
+        if self._manual_video or self._manual_audio:
+            total_bytes = 0
+            is_approx = False
+            if self._manual_video:
+                sz, approx = self._format_size(self._manual_video, duration)
+                if sz:
+                    total_bytes += sz
+                    is_approx = is_approx or approx
+            if self._manual_audio:
+                sz, approx = self._format_size(self._manual_audio, duration)
+                if sz:
+                    total_bytes += sz
+                    is_approx = is_approx or approx
+            return (total_bytes if total_bytes > 0 else None), is_approx
+
+        mode = self._mode_selector.value
+
+        # 2. AUDIO_ONLY mode
+        if mode is DownloadMode.AUDIO_ONLY:
+            quality = self._audio_quality_cg.value or ""
+            target_kbps: int | None = None
+            if quality == _CUSTOM_QUALITY:
+                try:
+                    target_kbps = int(self._custom_bitrate.value or "192")
+                except ValueError:
+                    target_kbps = 192
+            else:
+                target_kbps = AUDIO_QUALITY_PRESETS.get(quality)
+
+            if target_kbps and duration:
+                return int(target_kbps * 1000 * duration / 8), True
+
+            audio_fmt = self._find_best_audio_format(formats)
+            if audio_fmt:
+                return self._format_size(audio_fmt, duration)
+            if duration:
+                return int(160 * 1000 * duration / 8), True
+            return None, False
+
+        # 3. VIDEO_ONLY or VIDEO_AUDIO
+        container = self._container_cg.value or "mp4"
+        max_h = RESOLUTION_PRESETS.get(self._resolution_cg.value or "")
+        max_fps = FPS_PRESETS.get(self._fps_cg.value or "")
+        video_fmt = self._find_best_video_format(formats, max_h, max_fps, container)
+
+        video_bytes = 0
+        video_approx = False
+        if video_fmt:
+            sz, approx = self._format_size(video_fmt, duration)
+            if sz:
+                video_bytes = sz
+                video_approx = approx
+        elif max_h and duration:
+            kbps = self._approx_bitrate_for_height(max_h)
+            video_bytes = int(kbps * 1000 * duration / 8)
+            video_approx = True
+        elif duration:
+            video_bytes = int(1500 * 1000 * duration / 8)
+            video_approx = True
+
+        if mode is DownloadMode.VIDEO_ONLY:
+            return (video_bytes if video_bytes > 0 else None), video_approx
+
+        # 4. Audio tracks contribution in VIDEO_AUDIO
+        audio_bytes = 0
+        audio_approx = False
+        audio_mode = self._audio_tracks_mode.value
+
+        if audio_mode == t("audio_tracks_mode_all"):
+            tracks = media.audio_tracks or []
+            if tracks:
+                for t_info in tracks:
+                    matched = next(
+                        (f for f in formats if f.format_id == str(t_info.get("format_id"))),
+                        None,
+                    )
+                    if matched and matched.filesize:
+                        audio_bytes += matched.filesize
+                    elif duration:
+                        abr = float(t_info.get("abr") or 128)
+                        audio_bytes += int(abr * 1000 * duration / 8)
+                        audio_approx = True
+            else:
+                best_a = self._find_best_audio_format(formats, container)
+                if best_a:
+                    sz, approx = self._format_size(best_a, duration)
+                    if sz:
+                        audio_bytes += sz
+                        audio_approx = approx
+        elif audio_mode == t("audio_tracks_mode_custom"):
+            selected_cbs = [cb for cb in self._audio_track_cbs if cb.value]
+            if selected_cbs:
+                for cb in selected_cbs:
+                    t_info = next(
+                        (
+                            t
+                            for t in media.audio_tracks
+                            if str(t.get("language")) == str(cb.data)
+                            or str(t.get("format_id")) == str(cb.data)
+                        ),
+                        None,
+                    )
+                    fid = str(t_info.get("format_id")) if t_info else str(cb.data)
+                    matched = next((f for f in formats if f.format_id == fid), None)
+                    if matched and matched.filesize:
+                        audio_bytes += matched.filesize
+                    elif duration:
+                        abr = float(t_info.get("abr") or 128) if t_info else 128
+                        audio_bytes += int(abr * 1000 * duration / 8)
+                        audio_approx = True
+            else:
+                # Primary default audio track
+                best_a = self._find_best_audio_format(formats, container)
+                if best_a:
+                    sz, approx = self._format_size(best_a, duration)
+                    if sz:
+                        audio_bytes += sz
+                        audio_approx = approx
+        else:
+            # Default single audio track
+            best_a = self._find_best_audio_format(formats, container)
+            if best_a:
+                sz, approx = self._format_size(best_a, duration)
+                if sz:
+                    audio_bytes += sz
+                    audio_approx = approx
+            elif duration:
+                audio_bytes = int(128 * 1000 * duration / 8)
+                audio_approx = True
+
+        total = video_bytes + audio_bytes
+        return (total if total > 0 else None), (video_approx or audio_approx)
+
+    @staticmethod
+    def _format_size(fmt: FormatInfo, duration: float) -> tuple[int | None, bool]:
+        if fmt.filesize:
+            return fmt.filesize, fmt.filesize_is_approx
+        bitrate = fmt.tbr or fmt.vbr or fmt.abr
+        if bitrate and duration > 0:
+            return int(bitrate * 1000 * duration / 8), True
+        return None, False
+
+    @staticmethod
+    def _approx_bitrate_for_height(height: int | None) -> int:
+        if not height or height >= 2160:
+            return 8000
+        if height >= 1440:
+            return 4000
+        if height >= 1080:
+            return 1500
+        if height >= 720:
+            return 800
+        if height >= 480:
+            return 450
+        if height >= 360:
+            return 250
+        return 150
+
+    @staticmethod
+    def _find_best_video_format(
+        formats: list[FormatInfo],
+        max_h: int | None,
+        max_fps: int | None,
+        container: str = "mp4",
+    ) -> FormatInfo | None:
+        candidates = [
+            f
+            for f in formats
+            if f.stream_type in (StreamType.VIDEO_ONLY, StreamType.MUXED)
+            and (max_h is None or (f.height and f.height <= max_h))
+            and (max_fps is None or (f.fps and f.fps <= max_fps))
+        ]
+        if not candidates:
+            return None
+
+        # 1. Target the highest resolution available within cap
+        highest_h = max(f.height or 0 for f in candidates)
+        h_candidates = [f for f in candidates if (f.height or 0) == highest_h]
+
+        # 2. Prefer streams matching requested container (e.g. mp4 vs webm)
+        matching_ext = [f for f in h_candidates if f.ext == container]
+        pool = matching_ext if matching_ext else h_candidates
+
+        # 3. Match format with highest fps and known size/bitrate
+        return max(
+            pool,
+            key=lambda f: (
+                f.fps or 0.0,
+                f.filesize or ((f.tbr or 0.0) * 1000),
+            ),
+        )
+
+    @staticmethod
+    def _find_best_audio_format(
+        formats: list[FormatInfo], container: str = "mp4"
+    ) -> FormatInfo | None:
+        candidates = [f for f in formats if f.stream_type is StreamType.AUDIO_ONLY]
+        if not candidates:
+            return None
+        preferred_ext = "m4a" if container == "mp4" else "webm"
+        matching = [f for f in candidates if f.ext == preferred_ext]
+        pool = matching if matching else candidates
+        return max(pool, key=lambda f: f.filesize or f.abr or f.tbr or 0)
+
     def _refresh_summary(self) -> None:
-        """Rebuild the bottom-bar chips: format · quality → destination."""
+        """Rebuild the bottom-bar chips and live estimated file size."""
         mode = self._mode_selector.value
         if mode is DownloadMode.AUDIO_ONLY:
             fmt = (self._audio_format_cg.value or "mp3").upper()
@@ -444,6 +723,15 @@ class ConfigView(ft.Column):
                 overflow=ft.TextOverflow.ELLIPSIS,
             ),
         ]
+
+        total_size, is_approx = self._calculate_estimated_size()
+        if total_size is not None and total_size > 0:
+            size_str = human_bytes(total_size, approx=is_approx)
+            self._size_text.value = f"{t('fmt_size')}: {size_str}"
+            self._size_pill.visible = True
+        else:
+            self._size_pill.visible = False
+
         safe_update(self)
 
     async def _on_manual_expand(self, e: ft.Event) -> None:
@@ -474,6 +762,7 @@ class ConfigView(ft.Column):
                 on_selection=self._on_manual_selection,
             )
             self._formats_holder.controls = [table]
+            self._refresh_summary()
         except TimeoutError:
             self._formats_holder.controls = [
                 ft.Text(t("error_analysis_timeout"), color=ft.Colors.ERROR)
@@ -500,6 +789,7 @@ class ConfigView(ft.Column):
             )
         self._manual_summary.controls = pills
         self._manual_summary.visible = bool(pills)
+        self._refresh_summary()
         self.update()
 
     # ------------------------------------------------------------------
@@ -602,6 +892,7 @@ class ConfigView(ft.Column):
                 selected_audio_track_ids=track_ids,
                 embed_thumbnail=bool(self._thumbnail_cb.value),
                 embed_metadata=bool(self._metadata_cb.value),
+                prefer_vp9_video=bool(self.ctx.settings.prefer_vp9_video),
                 playlist_title=playlist_title,
                 playlist_index=playlist_index,
                 video_format_id=video_format_id,

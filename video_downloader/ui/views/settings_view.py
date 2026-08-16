@@ -266,6 +266,9 @@ class SettingsView(ft.Column):
         self._metadata = ft.Switch(
             label=t("embed_metadata"), value=settings.embed_metadata
         )
+        self._prefer_vp9 = ft.Switch(
+            label=t("prefer_vp9_video"), value=settings.prefer_vp9_video
+        )
 
         # --- Footer ----------------------------------------------------------
         save_button = primary_button(
@@ -319,7 +322,12 @@ class SettingsView(ft.Column):
             ft.Icons.TUNE_OUTLINED,
             t("section_conversion"),
             ft.Row(
-                [self._keep_originals, self._thumbnail, self._metadata],
+                [
+                    self._keep_originals,
+                    self._thumbnail,
+                    self._metadata,
+                    self._prefer_vp9,
+                ],
                 spacing=16,
                 wrap=True,
             ),
@@ -438,6 +446,7 @@ class SettingsView(ft.Column):
         self._multi_audio.value = settings.multi_audio
         self._thumbnail.value = settings.embed_thumbnail
         self._metadata.value = settings.embed_metadata
+        self._prefer_vp9.value = settings.prefer_vp9_video
         self._theme_selector.set_value(settings.theme_mode)
 
     def _sync_theme_selector(self) -> None:
@@ -476,6 +485,7 @@ class SettingsView(ft.Column):
         settings.multi_audio = bool(self._multi_audio.value)
         settings.embed_thumbnail = bool(self._thumbnail.value)
         settings.embed_metadata = bool(self._metadata.value)
+        settings.prefer_vp9_video = bool(self._prefer_vp9.value)
         settings.theme_mode = self._theme_selector.value or "system"
 
         self.ctx.save_settings()

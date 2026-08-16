@@ -169,6 +169,7 @@ TEXTS: dict[str, str] = {
     "multi_audio": "Download all audio tracks",
     "embed_thumbnail": "Embed thumbnail",
     "embed_metadata": "Embed metadata",
+    "prefer_vp9_video": "Prefer VP9 video streams",
     "theme": "Theme",
     "theme_system": "System",
     "theme_light": "Light",
@@ -246,4 +247,3 @@ STATE_LABELS: dict[DownloadState, str] = {
 
 def t(key: str) -> str:
     return TEXTS.get(key, key)
-

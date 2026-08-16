@@ -60,6 +60,7 @@ class DownloadRequest:
     selected_audio_track_ids: tuple[str, ...] = ()
     embed_thumbnail: bool = True
     embed_metadata: bool = False
+    prefer_vp9_video: bool = False
 
     # Playlist context (affects output template)
     playlist_title: str | None = None

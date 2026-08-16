@@ -57,7 +57,10 @@ class TestFormatSelector:
     def test_video_audio_selected_tracks_language_codes(self):
         # BCP-47 language codes → converted to ba[language=XX] filters
         req = make_request(selected_audio_track_ids=("en", "de", "ja"))
-        expected = "bv*+ba[language=en]+ba[language=de]+ba[language=ja]/bv*+mergeall[vcodec=none]/bv*+ba/b"
+        expected = (
+            "bv*+ba[language=en]+ba[language=de]+ba[language=ja]"
+            "/bv*+mergeall[vcodec=none]/bv*+ba/b"
+        )
         assert fb.build_format_selector(req) == expected
 
     def test_video_audio_single_track(self):
@@ -148,6 +151,42 @@ class TestYdlOpts:
         assert opts["continuedl"] is True
         assert opts["quiet"] is True
         assert opts["noplaylist"] is True
+
+    def test_vp9_preference_forces_mkv_and_sort_order(self):
+        req = make_request(container="mp4", max_height=1080, prefer_vp9_video=True)
+        opts = fb.build_ydl_opts(req, AppSettings(), None)
+        assert opts["format"] == "bv*[height<=?1080]+ba/b[height<=?1080]/b"
+        assert opts["merge_output_format"] == "mkv"
+        assert opts["format_sort"] == fb.VP9_FORMAT_SORT
+        assert opts["postprocessors"][0] == {
+            "key": "FFmpegVideoRemuxer",
+            "preferedformat": "mkv",
+        }
+
+    def test_vp9_preference_ignored_for_audio_only(self):
+        req = make_request(mode=DownloadMode.AUDIO_ONLY, prefer_vp9_video=True)
+        opts = fb.build_ydl_opts(req, AppSettings(), None)
+        assert "merge_output_format" not in opts
+        assert "format_sort" not in opts
+        assert opts["postprocessors"][0]["key"] == "FFmpegExtractAudio"
+
+    def test_vp9_preference_does_not_override_manual_video_id(self):
+        req = make_request(
+            video_format_id="137",
+            audio_format_id="140",
+            prefer_vp9_video=True,
+        )
+        opts = fb.build_ydl_opts(req, AppSettings(), None)
+        assert opts["format"] == "137+140"
+        assert opts["merge_output_format"] == "mkv"
+        assert "format_sort" not in opts
+
+    def test_vp9_preference_applies_with_multi_audio(self):
+        req = make_request(multi_audio=True, prefer_vp9_video=True)
+        opts = fb.build_ydl_opts(req, AppSettings(), None)
+        assert opts["merge_output_format"] == "mkv"
+        assert opts["audio_multistreams"] is True
+        assert opts["format_sort"] == fb.VP9_FORMAT_SORT
 
     def test_settings_applied(self):
         settings = AppSettings(

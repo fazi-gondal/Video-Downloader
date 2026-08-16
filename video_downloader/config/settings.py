@@ -30,6 +30,7 @@ class AppSettings:
     multi_audio: bool = False
     embed_thumbnail: bool = True
     embed_metadata: bool = True
+    prefer_vp9_video: bool = True
     theme_mode: str = "system"  # system | light | dark
 
     def __post_init__(self) -> None:

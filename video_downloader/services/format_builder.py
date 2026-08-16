@@ -18,9 +18,9 @@ from video_downloader.config.constants import (
 from video_downloader.config.settings import AppSettings
 from video_downloader.models.download import DownloadMode, DownloadRequest
 
-
 # BCP-47 language code pattern (e.g. 'en', 'de', 'zh-Hant', 'pt-BR')
 _LANG_CODE_RE = re.compile(r"^[a-z]{2,3}(-[A-Za-z]{2,4})?$")
+VP9_FORMAT_SORT = ["vcodec:vp9", "res", "fps", "acodec:opus", "acodec:m4a"]
 
 
 def _audio_selector(track_key: str) -> str:
@@ -102,7 +102,12 @@ def build_postprocessors(
     # When multiple audio tracks are merged, MKV is the effective container
     # regardless of what the user chose (only MKV reliably stores multi-audio).
     is_multi_audio = req.multi_audio or len(req.selected_audio_track_ids) > 1
-    effective_container = "mkv" if (is_multi_audio and req.mode is not DownloadMode.AUDIO_ONLY) else req.container
+    prefer_vp9 = req.prefer_vp9_video and req.mode is not DownloadMode.AUDIO_ONLY
+    effective_container = (
+        "mkv"
+        if ((is_multi_audio or prefer_vp9) and req.mode is not DownloadMode.AUDIO_ONLY)
+        else req.container
+    )
 
     if req.mode is DownloadMode.AUDIO_ONLY:
         pp: dict[str, Any] = {
@@ -202,11 +207,18 @@ def build_ydl_opts(
             req.multi_audio
             or len(req.selected_audio_track_ids) > 1
         )
-        effective_container = "mkv" if is_multi_audio else req.container
+        prefer_vp9 = req.prefer_vp9_video
+        effective_container = "mkv" if (is_multi_audio or prefer_vp9) else req.container
         opts["merge_output_format"] = effective_container
+        if prefer_vp9 and not req.video_format_id:
+            opts["format_sort"] = list(VP9_FORMAT_SORT)
         # Only apply codec-preference sort when NOT using explicit track IDs
         # (explicit IDs are already exact; format_sort can fight them).
-        if not req.selected_audio_track_ids and not req.multi_audio:
+        elif (
+            not req.video_format_id
+            and not req.selected_audio_track_ids
+            and not req.multi_audio
+        ):
             if req.container == "mp4":
                 opts["format_sort"] = ["vcodec:h264", "acodec:m4a"]
             elif req.container == "webm":
@@ -225,9 +237,11 @@ def build_ydl_opts(
 
     # audio_multistreams must be set whenever more than one audio track is
     # involved — otherwise FFmpeg only keeps the first stream it encounters.
-    if req.mode is not DownloadMode.AUDIO_ONLY:
-        if req.multi_audio or len(req.selected_audio_track_ids) > 1:
-            opts["audio_multistreams"] = True
+    if (
+        req.mode is not DownloadMode.AUDIO_ONLY
+        and (req.multi_audio or len(req.selected_audio_track_ids) > 1)
+    ):
+        opts["audio_multistreams"] = True
 
     if settings.proxy:
         opts["proxy"] = settings.proxy
