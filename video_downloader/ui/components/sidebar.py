@@ -37,6 +37,7 @@ _FFMPEG_CHIP: dict[str, tuple[str, str]] = {
     "bundled_full": (PILL_GREEN, "ffmpeg_chip_ok"),
     "bundled": (PILL_AMBER, "ffmpeg_chip_partial"),
     "missing": (PILL_RED, "ffmpeg_chip_missing"),
+    "checking": (PILL_AMBER, "ffmpeg_chip_checking"),
 }
 
 

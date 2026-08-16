@@ -53,7 +53,7 @@ class AppContext:
             self.ytdlp, self.bus, max_concurrent=self.settings.max_concurrent
         )
         self.conversions = ConversionService(self.ffmpeg, self.bus)
-        self.history = HistoryService()
+        self._history: HistoryService | None = None
         self.notifications = NotificationService()
         # Analysis state shared between dashboard and config views
         self.current_media: MediaInfo | PlaylistInfo | None = None
@@ -70,6 +70,12 @@ class AppContext:
 
     def on_theme_change(self, callback: Callable[[], None]) -> None:
         self._theme_listeners.append(callback)
+
+    @property
+    def history(self) -> HistoryService:
+        if self._history is None:
+            self._history = HistoryService()
+        return self._history
 
     def notify_theme_changed(self) -> None:
         for callback in self._theme_listeners:
@@ -88,14 +94,14 @@ class AppShell:
         self.page = page
         self.ctx = AppContext(page)
         self.ctx.apply_theme_mode = self.apply_theme_mode
-        self._views: list[ft.Control] = []
+        self._views: dict[int, ft.Control] = {}
         self._content = ft.Container(
             expand=True, padding=ft.Padding(left=32, top=24, right=32, bottom=20)
         )
         self._sidebar = Sidebar(
             on_select=self.select_view,
             on_toggle_theme=self._toggle_theme,
-            ffmpeg_source=self.ctx.ffmpeg.resolve().source,
+            ffmpeg_source="checking",
             draggable=not page.web,
         )
 
@@ -120,8 +126,7 @@ class AppShell:
         page.padding = 0
         page.on_resize = self._on_resize
 
-        self._views = self._build_views()
-        self._content.content = self._views[0]
+        self._content.content = self._get_view(0)
 
         # Frameless look on desktop: hide the native title bar and replace
         # its buttons with in-app controls; the top strip drags the window.
@@ -168,11 +173,19 @@ class AppShell:
         self.ctx.bus.subscribe(FFmpegToolchainReady, self._on_ffmpeg_ready)
         page.run_task(self.ctx.bus.pump)
 
-        # Fetch the full ffmpeg+ffprobe toolchain in the background if needed.
-        # The callback runs on the fetch thread; the bus crosses to the UI loop.
+    async def after_first_paint(self) -> None:
+        """Run slow dependency checks after the first visible frame."""
+        await asyncio.sleep(0)
+        source = await asyncio.to_thread(lambda: self.ctx.ffmpeg.resolve().source)
+        self._sidebar.set_ffmpeg_status(source)
         self.ctx.ffmpeg.ensure_full_toolchain(
             on_ready=lambda: self.ctx.bus.publish(FFmpegToolchainReady())
         )
+
+        # Warm modules/services that are useful soon but not required to draw Home.
+        threading.Thread(
+            target=lambda: importlib.import_module("yt_dlp"), daemon=True
+        ).start()
 
     # ------------------------------------------------------------------
     # Event handlers
@@ -196,7 +209,7 @@ class AppShell:
 
         source = self.ctx.ffmpeg.resolve().source
         self._sidebar.set_ffmpeg_status(source)
-        settings_view = self._views[4]
+        settings_view = self._views.get(4)
         if hasattr(settings_view, "refresh_dependencies"):
             settings_view.refresh_dependencies()
         show_toast(self.page, t("ffmpeg_ready"))
@@ -236,26 +249,41 @@ class AppShell:
 
     # ------------------------------------------------------------------
 
-    def _build_views(self) -> list[ft.Control]:
-        from video_downloader.ui.views.about_view import AboutView
-        from video_downloader.ui.views.converter_view import ConverterView
-        from video_downloader.ui.views.dashboard_view import DashboardView
-        from video_downloader.ui.views.downloads_view import DownloadsView
-        from video_downloader.ui.views.history_view import HistoryView
-        from video_downloader.ui.views.settings_view import SettingsView
+    def _get_view(self, index: int) -> ft.Control:
+        if index in self._views:
+            return self._views[index]
 
-        return [
-            DashboardView(self.ctx, on_continue=self.open_config),
-            DownloadsView(self.ctx),
-            ConverterView(self.ctx),
-            HistoryView(self.ctx, on_redownload=lambda: self.select_view(1)),
-            SettingsView(self.ctx),
-            AboutView(),
-        ]
+        if index == 0:
+            from video_downloader.ui.views.dashboard_view import DashboardView
+
+            view = DashboardView(self.ctx, on_continue=self.open_config)
+        elif index == 1:
+            from video_downloader.ui.views.downloads_view import DownloadsView
+
+            view = DownloadsView(self.ctx)
+        elif index == 2:
+            from video_downloader.ui.views.converter_view import ConverterView
+
+            view = ConverterView(self.ctx)
+        elif index == 3:
+            from video_downloader.ui.views.history_view import HistoryView
+
+            view = HistoryView(self.ctx, on_redownload=lambda: self.select_view(1))
+        elif index == 4:
+            from video_downloader.ui.views.settings_view import SettingsView
+
+            view = SettingsView(self.ctx)
+        else:
+            from video_downloader.ui.views.about_view import AboutView
+
+            view = AboutView()
+
+        self._views[index] = view
+        return view
 
     def select_view(self, index: int) -> None:
         self._sidebar.set_active(index)
-        self._content.content = self._views[index]
+        self._content.content = self._get_view(index)
         self.page.update()
 
     def open_config(self) -> None:
@@ -279,8 +307,4 @@ async def main(page: ft.Page) -> None:
             page.window.visible = True
             page.window.focused = True
             page.update()
-        # Warm up yt_dlp (imported lazily off the startup path) so the first
-        # "Analyze" doesn't pay the import cost on its worker thread.
-        threading.Thread(
-            target=lambda: importlib.import_module("yt_dlp"), daemon=True
-        ).start()
+        page.run_task(shell.after_first_paint)

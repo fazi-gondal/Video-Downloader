@@ -76,12 +76,21 @@ class DownloadsView(ft.Column):
         bus.subscribe(TaskProgress, self._on_progress)
         bus.subscribe(TaskPostProcessing, self._on_postprocessing)
 
+    def did_mount(self) -> None:
+        self.reload()
+
     # ------------------------------------------------------------------
     # Event handlers (always run on the UI loop via the EventBus pump)
 
-    def _on_queued(self, event: TaskQueued) -> None:
-        task = self.ctx.download_manager.get(event.task_id)
-        if task is None or event.task_id in self._tiles:
+    def reload(self) -> None:
+        for task in self.ctx.download_manager.tasks():
+            self._add_task_tile(task)
+        self._empty.visible = not self._tiles
+        self._refresh_summary()
+        safe_update(self)
+
+    def _add_task_tile(self, task) -> None:
+        if task.id in self._tiles:
             return
         tile = DownloadTile(
             task,
@@ -89,8 +98,14 @@ class DownloadsView(ft.Column):
             on_retry=self._retry,
             on_open_folder=self._open_folder,
         )
-        self._tiles[event.task_id] = tile
+        self._tiles[task.id] = tile
         self._list.controls.insert(0, tile)
+
+    def _on_queued(self, event: TaskQueued) -> None:
+        task = self.ctx.download_manager.get(event.task_id)
+        if task is None:
+            return
+        self._add_task_tile(task)
         self._empty.visible = False
         self._refresh_summary()
         safe_update(self)

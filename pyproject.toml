@@ -7,7 +7,7 @@ license = "MIT"
 license-files = ["LICENSE"]
 requires-python = ">=3.13"
 dependencies = [
-    "flet[all]>=0.85.3,<0.86",
+    "flet[all]>=0.86.5,<0.87",
     "imageio-ffmpeg>=0.5",
     "platformdirs>=4.10.0",
     "static-ffmpeg>=3.0",

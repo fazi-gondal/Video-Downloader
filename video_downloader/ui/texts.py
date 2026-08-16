@@ -24,6 +24,7 @@ TEXTS: dict[str, str] = {
     "ffmpeg_chip_ok": "ffmpeg: OK",
     "ffmpeg_chip_partial": "ffmpeg: partial",
     "ffmpeg_chip_missing": "ffmpeg: missing",
+    "ffmpeg_chip_checking": "ffmpeg: checking",
     # Dashboard
     "url_hint": "Paste a link and go…",
     "analyze": "Analyze",

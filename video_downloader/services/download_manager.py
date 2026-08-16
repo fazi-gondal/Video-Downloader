@@ -13,6 +13,7 @@ import threading
 from pathlib import Path
 from typing import Protocol
 
+from video_downloader.config.constants import DEFAULT_MAX_CONCURRENT
 from video_downloader.core.errors import AppError, DownloadCancelled
 from video_downloader.core.event_bus import EventBus
 from video_downloader.core.events import TaskQueued, TaskStateChanged
@@ -35,9 +36,6 @@ class DownloadEngine(Protocol):
     def cleanup_partials(output_dir: Path, media_id: str) -> None: ...
 
 
-from video_downloader.config.constants import DEFAULT_MAX_CONCURRENT
-
-
 class DownloadManager:
     def __init__(
         self,
@@ -53,12 +51,12 @@ class DownloadManager:
         self._workers: list[threading.Thread] = []
         self._max_concurrent = max(1, max_concurrent)
         self._shutdown = threading.Event()
-        self._ensure_workers()
 
     # ------------------------------------------------------------------
     # Public API (called from the UI loop)
 
     def enqueue(self, request: DownloadRequest) -> DownloadTask:
+        self._ensure_workers()
         task = DownloadTask(request=request)
         with self._tasks_lock:
             self._tasks[task.id] = task
