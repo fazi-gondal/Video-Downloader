@@ -28,8 +28,9 @@ DefaultGroupName={#AppName}
 DisableProgramGroupPage=yes
 OutputDir=..\..\build
 OutputBaseFilename=VideoDownloader-windows-{#AppArch}-setup
-Compression=lzma2
+Compression=lzma2/ultra64
 SolidCompression=yes
+LZMAUseSeparateProcess=yes
 #if AppArch == "arm64"
 ; arm64 binaries only run on Windows 11 ARM devices
 ArchitecturesAllowed=arm64
