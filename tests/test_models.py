@@ -120,9 +120,9 @@ class TestMediaInfo:
         )
         assert len(info.audio_tracks) == 3
         labels = [t["label"] for t in info.audio_tracks]
-        assert any("English (Original)" in l for l in labels)
-        assert any("German" in l for l in labels)
-        assert any("Japanese" in l for l in labels)
+        assert any("English (Original)" in label for label in labels)
+        assert any("German" in label for label in labels)
+        assert any("Japanese" in label for label in labels)
 
     def test_missing_fields(self):
         info = MediaInfo.from_ytdlp({"id": "x"})

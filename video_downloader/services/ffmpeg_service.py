@@ -402,7 +402,7 @@ class FFmpegService:
             "ml": "Malayalam", "ur": "Urdu", "nl": "Dutch",
         }
 
-        # Tag each audio stream with its language code and title (:s:a:N specifies N-th audio stream)
+        # Tag each audio stream with its language code and title.
         if first_lang:
             cmd += ["-metadata:s:a:0", f"language={first_lang}"]
             if title := lang_titles.get(first_lang):
@@ -437,4 +437,3 @@ class FFmpegService:
                 f"ffmpeg merge exited with code {process.returncode}", detail=err_msg
             )
         logger.info("Merged output: %s", output)
-

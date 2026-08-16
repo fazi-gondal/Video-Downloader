@@ -24,11 +24,20 @@ from video_downloader.core.errors import (
 )
 from video_downloader.core.event_bus import EventBus
 from video_downloader.core.events import TaskPostProcessing, TaskProgress, TaskStateChanged
-from video_downloader.models.download import DownloadMode, DownloadState, DownloadTask, ProgressInfo
+from video_downloader.models.download import (
+    DownloadMode,
+    DownloadState,
+    DownloadTask,
+    ProgressInfo,
+)
 from video_downloader.models.media import FormatInfo, MediaInfo, PlaylistInfo
 from video_downloader.services import format_builder
-from video_downloader.services.format_builder import _LANG_CODE_RE, _audio_selector, _get_js_runtimes  # noqa: F401
 from video_downloader.services.ffmpeg_service import FFmpegService
+from video_downloader.services.format_builder import (
+    _LANG_CODE_RE,
+    _audio_selector,
+    _get_js_runtimes,
+)
 from video_downloader.utils.validators import is_valid_url
 
 logger = logging.getLogger(__name__)
@@ -220,7 +229,6 @@ class YtdlpService:
         req = task.request
         settings = self._settings_provider()
         track_ids = list(req.selected_audio_track_ids)  # e.g. ["en", "de", "ja"]
-        total_passes = len(track_ids)  # 1 main + (N-1) audio-only
 
         def _make_base_opts(outtmpl: str) -> dict[str, Any]:
             """Base yt-dlp opts shared by all passes (no postprocessors)."""
@@ -262,7 +270,11 @@ class YtdlpService:
                 if status == "downloading":
                     if task.state is not DownloadState.DOWNLOADING:
                         task.state = DownloadState.DOWNLOADING
-                        bus.publish(TaskStateChanged(task_id=task.id, state=DownloadState.DOWNLOADING))
+                        bus.publish(
+                            TaskStateChanged(
+                                task_id=task.id, state=DownloadState.DOWNLOADING
+                            )
+                        )
                     if now - last_emit < PROGRESS_THROTTLE_SECONDS:
                         return
                     last_emit = now
@@ -338,7 +350,10 @@ class YtdlpService:
                 elif main_info.get("filepath"):
                     main_file = Path(main_info["filepath"])
             if main_file is None:
-                candidates = [p for p in tmp.iterdir() if not p.name.startswith("audio") and p.is_file()]
+                candidates = [
+                    p for p in tmp.iterdir()
+                    if not p.name.startswith("audio") and p.is_file()
+                ]
                 if candidates:
                     main_file = max(candidates, key=lambda p: p.stat().st_size)
             if main_file is None or not main_file.exists():
@@ -364,7 +379,12 @@ class YtdlpService:
                 except Exception as exc:
                     if task.cancel_event.is_set():
                         raise DownloadCancelled() from exc
-                    logger.warning("Multi-audio pass %d failed (%s), skipping track %s", i, exc, track_key)
+                    logger.warning(
+                        "Multi-audio pass %d failed (%s), skipping track %s",
+                        i,
+                        exc,
+                        track_key,
+                    )
                     continue
 
                 audio_file: Path | None = None

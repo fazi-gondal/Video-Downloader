@@ -228,7 +228,11 @@ class ConfigView(ft.Column):
                 ft.Container(
                     content=ft.Column(
                         self._audio_track_cbs if self._audio_track_cbs else [
-                            ft.Text("No audio tracks detected", size=12, color=ft.Colors.ON_SURFACE_VARIANT)
+                            ft.Text(
+                                "No audio tracks detected",
+                                size=12,
+                                color=ft.Colors.ON_SURFACE_VARIANT,
+                            )
                         ],
                         spacing=4,
                         scroll=ft.ScrollMode.AUTO,
@@ -293,7 +297,11 @@ class ConfigView(ft.Column):
                 ft.Container(
                     content=ft.Column(
                         self._subtitle_cbs if self._subtitle_cbs else [
-                            ft.Text("No subtitles detected", size=12, color=ft.Colors.ON_SURFACE_VARIANT)
+                            ft.Text(
+                                "No subtitles detected",
+                                size=12,
+                                color=ft.Colors.ON_SURFACE_VARIANT,
+                            )
                         ],
                         spacing=4,
                         scroll=ft.ScrollMode.AUTO,
