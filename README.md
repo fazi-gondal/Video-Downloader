@@ -1,236 +1,314 @@
 # Video Downloader
 
-Advanced desktop media download manager built with [Flet](https://flet.dev)
-(Flutter-powered UI), [yt-dlp](https://github.com/yt-dlp/yt-dlp) (download
-engine) and FFmpeg (media processing).
+<p align="center">
+  <img src="assets/icon.png" width="128" height="128" alt="Video Downloader Icon" />
+</p>
 
+<p align="center">
+  <strong>High-Performance Desktop Media Downloader & Transcoder</strong><br>
+  Built with <strong>Flet</strong> (Flutter-powered Native Desktop UI), <strong>yt-dlp</strong> (Universal Extraction Engine), and <strong>FFmpeg</strong> (Media Processing).
+</p>
+
+<p align="center">
+  <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/Python-3.13+-3776AB?style=flat&logo=python&logoColor=white" alt="Python 3.13+"></a>
+  <a href="https://flet.dev"><img src="https://img.shields.io/badge/Flet-0.86+-009688?style=flat&logo=flutter&logoColor=white" alt="Flet 0.86+"></a>
+  <a href="https://github.com/yt-dlp/yt-dlp"><img src="https://img.shields.io/badge/yt--dlp-Latest-red?style=flat&logo=youtube&logoColor=white" alt="yt-dlp"></a>
+  <a href="https://ffmpeg.org"><img src="https://img.shields.io/badge/FFmpeg-5.0+-007808?style=flat&logo=ffmpeg&logoColor=white" alt="FFmpeg"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat" alt="License: MIT"></a>
+  <a href="https://github.com/astral-sh/uv"><img src="https://img.shields.io/badge/Package%20Manager-uv-blueviolet?style=flat" alt="uv package manager"></a>
+</p>
+
+---
+
+## Table of Contents
+
+- [Overview](#overview)
+- [Screenshots](#screenshots)
+- [Key Features](#key-features)
+  - [Download Modes & Formats](#download-modes--formats)
+  - [Multi-Language Audio Dubs](#multi-language-audio-dubs)
+  - [Embedded Subtitles & Captions](#embedded-subtitles--captions)
+  - [Live File Size Estimation](#live-file-size-estimation)
+  - [Playlist & Channel Batch Processing](#playlist--channel-batch-processing)
+  - [Built-In Media Converter](#built-in-media-converter)
+  - [Queue & Concurrency Management](#queue--concurrency-management)
+  - [Privacy, Proxies & Authentication](#privacy-proxies--authentication)
+- [Installation](#installation)
+  - [Pre-Built Binaries](#1-pre-built-binaries)
+  - [JavaScript Engine Setup (YouTube)](#2-javascript-engine-setup-youtube)
+  - [FFmpeg Integration](#3-ffmpeg-integration)
+- [Running from Source](#running-from-source)
+- [Testing & Quality Assurance](#testing--quality-assurance)
+- [Building & Packaging](#building--packaging)
+  - [Local Desktop Builds](#local-desktop-builds)
+  - [Automated Multi-Platform CI/CD](#automated-multi-platform-cicd)
+- [Configuration & Settings](#configuration--settings)
+- [Architecture & Design Principles](#architecture--design-principles)
+- [Contributing](#contributing)
+- [License](#license)
+
+---
+
+## Overview
+
+**Video Downloader** is a modern, cross-platform desktop application designed to capture, organize, and convert video and audio from thousands of platforms (YouTube, Vimeo, Twitter/X, TikTok, Reddit, Instagram, Twitch, Dailymotion, Facebook, Bilibili, and many more). 
+
+Unlike basic wrappers, Video Downloader features:
+- A custom **Nocturnal Studio** design system with fluent dark/light modes and frameless window controls.
+- Complete multi-track audio extraction and remuxing into universal Matroska (`.mkv`) containers.
+- Lossless remuxing vs. transcode detection to prevent quality loss and ensure blazing fast performance.
+- A fully asynchronous, thread-isolated architecture: download tasks run on dedicated background workers while events sync smoothly to the UI via an internal `EventBus`.
+
+---
 
 ## Screenshots
 
-### Main window
-| | |
-|---|---|
-<img width="100%"  alt="Captura de pantalla 2026-08-02 a las 1 27 58 a  m" src="https://github.com/user-attachments/assets/87021dc9-8654-439a-9178-2a54f88d7823" /> | <img width="100%"  alt="Captura de pantalla 2026-08-02 a las 1 28 18 a  m" src="https://github.com/user-attachments/assets/470b6573-70de-4364-904d-73cea637f4f8" /> |
+### Main Window & URL Extraction
+| Dark Mode | Light Mode |
+| :---: | :---: |
+| <img width="100%" alt="Dashboard Dark" src="https://github.com/user-attachments/assets/87021dc9-8654-439a-9178-2a54f88d7823" /> | <img width="100%" alt="Dashboard Light" src="https://github.com/user-attachments/assets/470b6573-70de-4364-904d-73cea637f4f8" /> |
 
-### Download Selection
-| | |
-|---|---|
-<img width="100%"   alt="Captura de pantalla 2026-08-02 a las 1 28 48 a  m" src="https://github.com/user-attachments/assets/518d887b-2418-4342-87fd-6fef44edcab1" /> | <img width="100%"   alt="Captura de pantalla 2026-08-02 a las 1 28 51 a  m" src="https://github.com/user-attachments/assets/9f55ddd8-4183-4772-a72f-6defd18160a4" /> |
+### Download Configuration & Multi-Track Selection
+| Single Video Configuration | Multi-Audio & Subtitle Picker |
+| :---: | :---: |
+| <img width="100%" alt="Config Dark" src="https://github.com/user-attachments/assets/518d887b-2418-4342-87fd-6fef44edcab1" /> | <img width="100%" alt="Config Multi-Audio" src="https://github.com/user-attachments/assets/9f55ddd8-4183-4772-a72f-6defd18160a4" /> |
 
+### Format Explorer Table & Settings
+| Format Explorer | Settings & Dependency Inspector |
+| :---: | :---: |
+| <img width="100%" alt="Format Explorer" src="https://github.com/user-attachments/assets/e5611565-c517-4ef2-80d0-db28ef1bbfa1" /> | <img width="100%" alt="Settings" src="https://github.com/user-attachments/assets/b14db297-1dd2-4b0c-adbe-87d036d01d76" /> |
 
-### Format explorer
-| | |
-|---|---|
-<img width="100%"   alt="Captura de pantalla 2026-08-02 a las 1 28 03 a  m" src="https://github.com/user-attachments/assets/e5611565-c517-4ef2-80d0-db28ef1bbfa1" /> | <img width="100%"   alt="Captura de pantalla 2026-08-02 a las 1 28 23 a  m" src="https://github.com/user-attachments/assets/fd39055b-93e0-4dee-91f2-cbf97434799f" /> |
+---
 
-### Settings
-| | |
-|---|---|
-<img width="100%"   alt="Captura de pantalla 2026-08-02 a las 1 28 14 a  m" src="https://github.com/user-attachments/assets/b14db297-1dd2-4b0c-adbe-87d036d01d76" /> | <img width="100%"   alt="Captura de pantalla 2026-08-02 a las 1 28 51 a  m" src="https://github.com/user-attachments/assets/d2bb536f-11f5-42c5-94fa-17f6c30adb4d" /> |
+## Key Features
 
+### Download Modes & Formats
+- **Video + Audio (`VIDEO_AUDIO`)**: Automatically downloads the highest quality video and audio streams, muxing them seamlessly via FFmpeg.
+- **Audio Only (`AUDIO_ONLY`)**: Extracts audio directly with bitrate control (up to 320 kbps) and converts to `MP3`, `M4A`, `AAC`, `FLAC`, `OPUS`, or `WAV`.
+- **Video Only (`VIDEO_ONLY`)**: Downloads video without audio tracks for background footage or silent assets.
+- **Preset Resolutions**: 4320p (8K), 2160p (4K), 1440p (2K), 1080p (Full HD), 720p (HD), 480p (SD), 360p, 240p, 144p.
+- **Frame Rate Filters**: Target 60 FPS, 30 FPS, or best available.
+- **Containers**: MP4, MKV, WebM, AVI, MOV, TS.
+
+### Multi-Language Audio Dubs
+- **Multi-Track Selection**: Detects and exposes all audio dub tracks for multi-language videos (such as MrBeast videos with 20+ languages).
+- **Three Audio Modes**:
+  - **Default**: Downloads the creator's primary audio track.
+  - **All Tracks**: Downloads and merges all available language dubs.
+  - **Custom**: Checkbox list allowing you to select any combination of audio tracks (e.g. English + Spanish + German + Arabic).
+- **Universal Playback & Tagging**:
+  - Encodes multi-audio tracks into high-bitrate **192 kbps AAC** within Matroska (`.mkv`) containers.
+  - Sets clean stream dispositions (`-disposition:a:0 default`, `-disposition:a:1 0`...) so media players (VLC, Windows Media Player, MPC-HC, TV players) switch cleanly without silence or packet header errors.
+  - Injects human-readable track titles (e.g. `English`, `Arabic`, `German`, `Hindi`) and BCP-47 language metadata into container headers.
+
+### Embedded Subtitles & Captions
+- **Full Subtitle Support**: Detects both creator-uploaded subtitles and automatic speech-to-text captions.
+- **Modes**: None, All Subtitles, or Custom selection (e.g. English, Spanish, French).
+- **Direct Embedding**: Soft subtitles embedded directly into MKV/MP4 containers without hardcoding (burned-in) or separate sidecar `.srt` files.
+
+### Live File Size Estimation
+- **Real-Time Size Preview**: Displays an estimated file size widget directly beside the Download button.
+- **Dynamic Updates**: Automatically recalculates when switching resolution, container, frame rate, audio tracks, or manual format streams.
+- **Codec-Aware**: Uses actual stream payloads (`filesize` / `filesize_approx` / `tbr`) for precision.
+
+### Playlist & Channel Batch Processing
+- **Flat Playlist Analysis**: Rapidly extracts metadata for hundreds of playlist entries in seconds without freezing.
+- **Interactive Selection**: Select all, unselect all, or cherry-pick specific videos from a playlist.
+- **Smart Formatting**: Formats playlist items with structured naming: `Playlist Title/001 - Video Title.ext`.
+
+### Built-In Media Converter
+- **Lossless Stream Copy**: Converts between compatible containers (e.g., MP4 to MKV) in fractions of a second using `-c copy`.
+- **Transcoding**: High-quality audio/video transcoding for incompatible formats.
+- **Batch Processing**: Convert multiple local media files simultaneously.
+
+### Queue & Concurrency Management
+- **Concurrent Downloads**: Default concurrency set to **8** workers (customizable up to **16** in Settings).
+- **Live Metrics**: Real-time progress percentage, downloaded bytes, total size, download speed, and estimated time of arrival (ETA).
+- **Safe Task Cancellation**: Instant task cancellation with temporary file cleanup.
+
+### Privacy, Proxies & Authentication
+- **Browser Cookies**: Extract session cookies from Chrome, Edge, Firefox, Brave, Chromium, Opera, or Safari for age-restricted, private, or subscriber-only videos.
+- **Proxy Support**: Full HTTP, HTTPS, and SOCKS5 proxy support.
+- **Custom HTTP Headers**: Supply custom headers or user-agent strings for restricted servers.
+- **Rate Limiting**: Limit download speed per task to avoid bandwidth saturation.
+
+---
 
 ## Installation
 
-> 📖 Detailed step-by-step guide: [INSTALL.md](INSTALL.md) — the app's
-> dependency status cards (Settings → Dependencies) deep-link straight to
-> the relevant section when something is missing.
+### 1. Pre-Built Binaries
 
-### 1. Download the file for your platform
+Download the standalone package for your operating system from the [Latest Releases](../../releases/latest):
 
-Grab it from the [latest release](../../releases/latest):
+| Operating System | Download File | Installation Instructions |
+| :--- | :--- | :--- |
+| 🪟 **Windows (x64)** | `VideoDownloader-windows-x64-setup.exe` | Run the installer. If SmartScreen appears, click **More info → Run anyway**. |
+| 🪟 **Windows (ARM64)** | `VideoDownloader-windows-arm64-setup.exe` | Same as above. |
+| 🍎 **macOS (Apple Silicon)** | `VideoDownloader-macos-arm64.dmg` | Open the DMG and drag **Video Downloader** to `Applications`. On first run: **Right-click → Open**. |
+| 🍎 **macOS (Intel)** | `VideoDownloader-macos-x86_64.dmg` | Same as above. |
+| 🐧 **Linux (Debian/Ubuntu)** | `VideoDownloader-linux-amd64.deb` | Run `sudo apt install ./VideoDownloader-linux-amd64.deb` |
+| 🐧 **Linux (Universal AppImage)** | `VideoDownloader-linux-x86_64.AppImage` | Run `chmod +x VideoDownloader-linux-x86_64.AppImage && ./VideoDownloader-linux-x86_64.AppImage` |
 
-| Platform | Download | Install |
-|---|---|---|
-| 🍎 macOS (Apple Silicon) | `VideoDownloader-macos-arm64.dmg` | Open the DMG and drag **Video Downloader** to Applications. Unsigned build: the first time, **right-click → Open**. |
-| 🍎 macOS (Intel) | `VideoDownloader-macos-x86_64.dmg` | Same as above. |
-| 🪟 Windows (x64) | `VideoDownloader-windows-x64-setup.exe` | Run the installer. If SmartScreen warns: **More info → Run anyway**. |
-| 🪟 Windows (ARM) | `VideoDownloader-windows-arm64-setup.exe` | Same as above. |
-| 🐧 Linux Debian/Ubuntu (x86_64) | `VideoDownloader-linux-amd64.deb` | `sudo apt install ./VideoDownloader-linux-amd64.deb` |
-| 🐧 Linux Debian/Ubuntu (ARM) | `VideoDownloader-linux-arm64.deb` | `sudo apt install ./VideoDownloader-linux-arm64.deb` |
-| 🐧 Linux any distro (x86_64) | `VideoDownloader-linux-x86_64.AppImage` | `chmod +x VideoDownloader-linux-x86_64.AppImage` and run. |
-| 🐧 Linux any distro (ARM) | `VideoDownloader-linux-aarch64.AppImage` | `chmod +x VideoDownloader-linux-aarch64.AppImage` and run. |
+---
 
-Everything is bundled: you do **not** need Python, yt-dlp or FFmpeg
-installed to use the app.
+### 2. JavaScript Engine Setup (YouTube)
 
-### 2. Required: a JavaScript engine (for YouTube)
+YouTube requires solving JavaScript challenge signatures (n-sig / player challenges). Installing a lightweight JS runtime ensures 100% download reliability without throttling:
 
-YouTube requires solving JavaScript challenges; without a JS engine most
-YouTube downloads fail. Install [Deno](https://deno.land) (recommended;
-Node.js or Bun also work):
+| Platform | Recommended Engine | Installation Command |
+| :--- | :--- | :--- |
+| **Windows** | [Deno](https://deno.land) or [Node.js](https://nodejs.org) | `winget install deno` or `winget install OpenJS.NodeJS` |
+| **macOS** | [Deno](https://deno.land) | `brew install deno` |
+| **Linux** | [Deno](https://deno.land) or Node.js | `sudo snap install deno` or `sudo apt install nodejs` |
 
-| Platform | Command |
-|---|---|
-| macOS | `brew install deno` |
-| Windows | `winget install deno` |
-| Linux | `sudo snap install deno` (or your distro's package) |
+*The app automatically detects Deno, Node.js, and Bun and shows live status in **Settings → Dependencies**.*
 
-### 3. Optional (better experience)
+---
 
-- **FFmpeg on the system** — the app ships a fallback FFmpeg and can
-  download a full toolchain on first run, but a system install is the most
-  reliable: `brew install ffmpeg` / `winget install ffmpeg` /
-  `sudo apt install ffmpeg`.
-- **AppImage users only**: GTK 3 and libmpv must be present —
-  `sudo apt install libmpv2` / `sudo dnf install mpv-libs`. (The `.deb`
-  installs these automatically.)
-- **Windows on a very clean machine**: the
-  [Microsoft Visual C++ Redistributable](https://aka.ms/vs/17/release/vc_redist.x64.exe)
-  may be needed if the app doesn't start.
+### 3. FFmpeg Integration
 
-The **Settings** screen shows a live status of FFmpeg and the JS engine,
-so you can verify what the app detected. For age-restricted or private
-content, set **Settings → Browser cookies**.
+The app automatically searches for FFmpeg in the following order:
+1. **System `PATH`**: Custom or system-installed FFmpeg (`winget install ffmpeg`, `brew install ffmpeg`, `sudo apt install ffmpeg`).
+2. **Downloaded Toolchain**: Downloadable directly through **Settings → Download Full FFmpeg Toolchain** (`static-ffmpeg`).
+3. **Bundled Fallback**: Built-in `imageio-ffmpeg` binary.
 
-## Features
+---
 
-- URL analysis: single videos, playlists and channels.
-- Format explorer: resolution, FPS, codecs, bitrate and estimated size.
-- Download modes: video only, audio only (MP3/M4A/AAC/FLAC/OPUS/WAV), or
-  video+audio with automatic merging via FFmpeg.
-- Post-download conversion with lossless remux vs re-encode detection.
-- Concurrent downloads with queue, live progress, speed, ETA and cancellation.
-- Advanced settings: proxy, browser cookies, custom headers, rate limiting,
-  subtitles, thumbnails and metadata embedding.
-- Custom "Nocturnal Studio" design system: frameless window with in-app
-  controls, dark/light themes, custom sidebar and live download badge.
+## Running from Source
 
-## Run from source
-
-The only tool you need is [uv](https://docs.astral.sh/uv/) — it manages
-Python 3.13 and all dependencies automatically. The FFmpeg/Deno notes from
-[Installation](#installation) apply here too (the app resolves FFmpeg in
-this order: system `PATH` → downloaded `static-ffmpeg` toolchain →
-bundled `imageio-ffmpeg` fallback without ffprobe).
+We use [uv](https://docs.astral.sh/uv/) for blazing-fast, deterministic dependency management:
 
 ```bash
+# 1. Clone the repository
+git clone https://github.com/fazi-gondal/Video-Downloader.git
+cd Video-Downloader
+
+# 2. Install dependencies into virtual environment
 uv sync
-uv run python main.py          # desktop app
-uv run flet run --web main.py  # browser mode (development)
+
+# 3. Launch the desktop application
+uv run python main.py
+
+# (Optional) Run in web development mode
+uv run flet run --web main.py
 ```
 
-## Tests and quality
+---
+
+## Testing & Quality Assurance
+
+Run the automated test suite and code quality checkers:
 
 ```bash
+# Run unit and integration tests (90 tests)
 uv run pytest
+
+# Check code style with Ruff
 uv run ruff check .
+
+# Validate strict type hints with mypy
 uv run mypy video_downloader
 ```
 
-## Building executables
+---
 
-`flet build` packages the app with Flutter and **only compiles for the OS it
-runs on** (there is no cross-compilation). Branding comes from the repo:
+## Building & Packaging
 
-- Product name: `[tool.flet] product` in [pyproject.toml](pyproject.toml)
-  (`Video Downloader`).
-- App icon: [assets/icon.png](assets/icon.png) — flet generates every
-  platform-specific icon size from it (.icns, .ico, etc.).
-- App version: `[project] version` in [pyproject.toml](pyproject.toml).
+### Local Desktop Builds
 
-### Local build (current OS only)
+Compile native executables for your current operating system using `flet build`:
 
 ```bash
-# On macOS   → build/macos/Video Downloader.app
-uv run flet build macos --yes
-
-# On Windows → build/windows/  (Video Downloader.exe + support files)
+# Windows -> build/windows/
 uv run flet build windows --yes
 
-# On Linux   → build/linux/
+# macOS -> build/macos/Video Downloader.app
+uv run flet build macos --yes
+
+# Linux -> build/linux/
 uv run flet build linux --yes
 ```
 
-Notes:
+> **Build Prerequisites**:
+> - **Windows**: Visual Studio Build Tools with the *Desktop development with C++* workload.
+> - **Linux**: `sudo apt-get install ninja-build libgtk-3-dev libmpv-dev mpv`
+> - **macOS**: Xcode or Xcode Command Line Tools (`xcode-select --install`).
 
-- `--yes` lets flet download the exact Flutter SDK version it requires
-  (~1 GB the first time; cached afterwards). The Flutter version is
-  determined by the pinned flet release in `uv.lock`, so builds are
-  reproducible.
-- Linux needs build dependencies first:
-  `sudo apt-get install ninja-build libgtk-3-dev libmpv-dev mpv`.
-- Windows needs Visual Studio Build Tools with the "Desktop development
-  with C++" workload.
+---
 
-### Release builds for all three platforms (GitHub Actions)
+### Automated Multi-Platform CI/CD
 
-The workflow [.github/workflows/build.yml](.github/workflows/build.yml)
-builds macOS, Windows and Linux in parallel on GitHub-hosted runners.
-Since `flet build` cannot cross-compile, each architecture is built on
-its own native runner: macOS arm64 + x86_64, Windows x64 + arm64 and
-Linux amd64 + arm64 (six jobs in total).
-
-**To publish a release:**
+The workflow in [`.github/workflows/build.yml`](.github/workflows/build.yml) automatically compiles native installers for all 6 target platforms on every release tag:
 
 ```bash
-# 1. Bump [project] version in pyproject.toml (e.g. 0.2.0), commit, then:
-git tag v0.2.0
-git push origin v0.2.0
-
-# 2. Create the GitHub release for that tag (or let the workflow create it):
-gh release create v0.2.0 --title "v0.2.0" --generate-notes
+# Create and push a version tag
+git tag v1.0.0
+git push origin v1.0.0
 ```
 
-Pushing the `v*` tag triggers the workflow, which builds every
-platform/architecture pair and attaches native installers to the release
-for that tag:
+---
 
-- `VideoDownloader-macos-{arm64,x86_64}.dmg` — mount and drag
-  **Video Downloader.app** to Applications.
-- `VideoDownloader-windows-{x64,arm64}-setup.exe` — Inno Setup installer
-  with Start Menu / desktop shortcuts.
-- `VideoDownloader-linux-{amd64,arm64}.deb` — installable with
-  `sudo apt install ./VideoDownloader-linux-<arch>.deb` (adds a menu entry
-  and icon). Debian/Ubuntu.
-- `VideoDownloader-linux-{x86_64,aarch64}.AppImage` — portable,
-  distro-agnostic: `chmod +x` and run. Requires GTK 3 and libmpv on the
-  system.
+## Configuration & Settings
 
-What end users need on their machine is covered in
-[Installation](#installation) — everything else ships inside the package.
+Settings are stored in JSON format inside the OS user application directory:
+- **Windows**: `%LOCALAPPDATA%\VideoDownloader\settings.json`
+- **macOS**: `~/Library/Application Support/VideoDownloader/settings.json`
+- **Linux**: `~/.config/VideoDownloader/settings.json`
 
-CI caching: the Flutter SDK that flet downloads (`~/flutter`, ~1 GB) and
-the pub cache are cached between runs keyed on `uv.lock` and the runner
-architecture; Python packages are cached by setup-uv. First run per
-platform/arch is slow, following runs are much faster.
+| Setting | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `download_path` | `str` | `~/Downloads/VideoDownloader` | Output destination directory. |
+| `max_concurrent_downloads` | `int` | `8` | Number of simultaneous download threads (1–16). |
+| `embed_thumbnail` | `bool` | `True` | Embed thumbnail as cover art in output file. |
+| `embed_metadata` | `bool` | `True` | Embed title, artist, description, and chapters. |
+| `write_subtitles` | `bool` | `False` | Automatically download and embed all subtitles. |
+| `theme_mode` | `str` | `"system"` | UI Theme: `"system"`, `"dark"`, or `"light"`. |
+| `cookies_browser` | `str | None` | `None` | Browser to extract session cookies from. |
+| `proxy` | `str | None` | `None` | Proxy URL (`http://...`, `socks5://...`). |
+| `rate_limit_kbps` | `int | None` | `None` | Speed cap per download task in KB/s. |
 
-You can also run it manually from the **Actions** tab (workflow_dispatch);
-manual runs upload the binaries as workflow artifacts instead of attaching
-them to a release.
+---
 
-**Version pinning policy:** everything in the workflow is pinned on purpose —
-GitHub Actions by exact tag, the uv version, Python from `.python-version`,
-project dependencies via `uv sync --frozen` (installs exactly what `uv.lock`
-records, never re-resolves), and the Flutter SDK via the pinned flet release.
-Nothing updates by itself; bump versions manually when you decide to.
-
-## Architecture
+## Architecture & Design Principles
 
 ```
 video_downloader/
-├── config/     # constants, presets and settings persistence (JSON)
-├── core/       # errors, typed events, event bus (threads → UI) and logging
-├── models/     # MediaInfo/FormatInfo/PlaylistInfo, DownloadTask/Request, conversion
-├── services/   # ytdlp_service, ffmpeg_service, format_builder, download_manager
-├── utils/      # human formatting, URL validation, paths
-└── ui/         # Flet shell, views, components, theme and texts (Spanish)
+├── config/             # Constants, quality presets, settings model, and persistence
+├── core/               # Error taxonomy, event bus, typed events, and logging
+├── models/             # MediaInfo, FormatInfo, PlaylistInfo, DownloadTask, ConversionTask
+├── services/           # YtDlpService, FFmpegService, FormatBuilder, DownloadManager, HistoryService
+├── ui/
+│   ├── components/     # Reusable UI widgets (ChipGroup, FormatTable, FolderPicker, Cards)
+│   ├── views/          # Main views: DashboardView, ConfigView, DownloadsView, ConverterView, SettingsView
+│   ├── theme.py        # Nocturnal Studio design tokens, typography, and palette
+│   └── app.py          # AppShell, window chrome, navigation state, and lifecycle
+└── utils/              # Human formatting, path sanitization, and URL validators
 ```
 
-Key design rules:
+### Key Design Tenets:
+1. **Thread Isolation**: `yt-dlp` and `FFmpeg` execute inside background worker pools. UI components are never accessed from worker threads.
+2. **EventBus Communication**: State updates, progress metrics, and errors publish through `core.events` to keep the UI silky-smooth and responsive.
+3. **Pure Format Specifications**: `format_builder.py` is a pure functional compiler converting user UI selections into deterministic `yt-dlp` CLI and Python options.
+4. **Surgical Process Management**: FFmpeg merges stream pipes via `subprocess.Popen` with buffer-drain protection to avoid OS deadlock on large multi-track remuxes.
 
-- yt-dlp is blocking: it runs on `DownloadManager` worker threads; no Flet
-  control is ever touched from those threads. Events cross into the UI loop
-  through the `EventBus`.
-- `format_builder` is pure (UI options → `ydl_opts`) and concentrates the
-  test suite.
-- The UI only shows Spanish messages mapped from the error taxonomy; the
-  technical detail goes to the log (`~/Library/Logs/VideoDownloader/`).
+---
 
 ## Contributing
 
-Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for the
-project setup, conventions and pull-request workflow.
+Contributions, bug reports, and feature suggestions are welcome!
+1. Fork the repository.
+2. Create a feature branch: `git checkout -b feature/amazing-feature`.
+3. Commit your changes: `git commit -m 'feat: add amazing feature'`.
+4. Run tests: `uv run pytest && uv run ruff check .`.
+5. Push to the branch: `git push origin feature/amazing-feature`.
+6. Open a Pull Request.
+
+---
 
 ## License
 
-This project is open source under the [MIT License](LICENSE).
+Distributed under the **MIT License**. See [`LICENSE`](LICENSE) for more information.
+
+<p align="center">
+  Crafted with care by <strong>Fazi Gondal</strong>
+</p>

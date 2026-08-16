@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Callable
+from typing import Any
 
 import flet as ft
 
@@ -227,7 +228,7 @@ class ConfigView(ft.Column):
                 ft.Text(t("select_audio_hint"), size=12.5, color=ft.Colors.ON_SURFACE_VARIANT),
                 ft.Container(
                     content=ft.Column(
-                        self._audio_track_cbs if self._audio_track_cbs else [
+                        list(self._audio_track_cbs) if self._audio_track_cbs else [
                             ft.Text(
                                 "No audio tracks detected",
                                 size=12,
@@ -296,7 +297,7 @@ class ConfigView(ft.Column):
                 ft.Text(t("select_subtitles_hint"), size=12.5, color=ft.Colors.ON_SURFACE_VARIANT),
                 ft.Container(
                     content=ft.Column(
-                        self._subtitle_cbs if self._subtitle_cbs else [
+                        list(self._subtitle_cbs) if self._subtitle_cbs else [
                             ft.Text(
                                 "No subtitles detected",
                                 size=12,
@@ -599,7 +600,7 @@ class ConfigView(ft.Column):
             selected_cbs = [cb for cb in self._audio_track_cbs if cb.value]
             if selected_cbs:
                 for cb in selected_cbs:
-                    t_info = next(
+                    matched_track: dict[str, Any] | None = next(
                         (
                             t
                             for t in media.audio_tracks
@@ -608,12 +609,12 @@ class ConfigView(ft.Column):
                         ),
                         None,
                     )
-                    fid = str(t_info.get("format_id")) if t_info else str(cb.data)
+                    fid = str(matched_track.get("format_id")) if matched_track else str(cb.data)
                     matched = next((f for f in formats if f.format_id == fid), None)
                     if matched and matched.filesize:
                         audio_bytes += matched.filesize
                     elif duration:
-                        abr = float(t_info.get("abr") or 128) if t_info else 128
+                        abr = float(matched_track.get("abr") or 128) if matched_track else 128
                         audio_bytes += int(abr * 1000 * duration / 8)
                         audio_approx = True
             else:
@@ -643,7 +644,7 @@ class ConfigView(ft.Column):
     def _format_size(fmt: FormatInfo, duration: float) -> tuple[int | None, bool]:
         if fmt.filesize:
             return fmt.filesize, fmt.filesize_is_approx
-        bitrate = fmt.tbr or fmt.vbr or fmt.abr
+        bitrate = fmt.tbr or fmt.abr
         if bitrate and duration > 0:
             return int(bitrate * 1000 * duration / 8), True
         return None, False

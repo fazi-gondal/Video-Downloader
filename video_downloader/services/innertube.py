@@ -226,7 +226,7 @@ def _parse_audio_tracks(player_response: dict[str, Any]) -> list[dict[str, Any]]
         })
 
     # Sort: original/default first, dubbed next, auto-dubbed last; then by lang name
-    def _sort_key(t: dict[str, Any]) -> tuple[int, int, str, float]:
+    def _sort_key(t: dict[str, Any]) -> tuple[int, str, float]:
         order = 0 if t.get("is_default") else (2 if t.get("is_auto_dubbed") else 1)
         lang = t.get("language") or ""
         abr = -(t.get("abr") or 0)

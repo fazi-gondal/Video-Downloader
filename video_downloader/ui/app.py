@@ -7,6 +7,7 @@ import importlib
 import logging
 import threading
 from collections.abc import Callable
+from typing import Protocol, cast
 
 import flet as ft
 
@@ -37,6 +38,10 @@ logger = logging.getLogger(__name__)
 # threshold (hysteresis so resizing near the edge doesn't flicker).
 _COLLAPSE_BELOW = 1000
 _EXPAND_ABOVE = 1040
+
+
+class _RefreshableDependencies(Protocol):
+    def refresh_dependencies(self) -> None: ...
 
 
 class AppContext:
@@ -211,7 +216,7 @@ class AppShell:
         self._sidebar.set_ffmpeg_status(source)
         settings_view = self._views.get(4)
         if hasattr(settings_view, "refresh_dependencies"):
-            settings_view.refresh_dependencies()
+            cast(_RefreshableDependencies, settings_view).refresh_dependencies()
         show_toast(self.page, t("ffmpeg_ready"))
 
     def _refresh_downloads_badge(self) -> None:
@@ -256,7 +261,7 @@ class AppShell:
         if index == 0:
             from video_downloader.ui.views.dashboard_view import DashboardView
 
-            view = DashboardView(self.ctx, on_continue=self.open_config)
+            view: ft.Control = DashboardView(self.ctx, on_continue=self.open_config)
         elif index == 1:
             from video_downloader.ui.views.downloads_view import DownloadsView
 

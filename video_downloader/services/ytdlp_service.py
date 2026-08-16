@@ -229,6 +229,7 @@ class YtdlpService:
         req = task.request
         settings = self._settings_provider()
         track_ids = list(req.selected_audio_track_ids)  # e.g. ["en", "de", "ja"]
+        last_emit = 0.0
 
         def _make_base_opts(outtmpl: str) -> dict[str, Any]:
             """Base yt-dlp opts shared by all passes (no postprocessors)."""
@@ -293,8 +294,6 @@ class YtdlpService:
                     task.state = DownloadState.PROCESSING
                     bus.publish(TaskStateChanged(task_id=task.id, state=DownloadState.PROCESSING))
             return hook
-
-        last_emit = 0.0
 
         with tempfile.TemporaryDirectory(prefix="vd_multiaudio_") as tmpdir:
             tmp = Path(tmpdir)
