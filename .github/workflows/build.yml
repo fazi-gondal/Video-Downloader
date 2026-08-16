@@ -3,8 +3,8 @@ name: Build releases
 # `flet build` can only compile for the OS **and architecture** it runs on
 # (no cross-compilation), so every platform/arch pair is built on its own
 # native runner:
-#   Windows : x64 (windows-latest) + arm64 (windows-11-arm)
-#   macOS/Linux builds are intentionally commented out for now.
+#   Windows : x64 (windows-latest)
+#   macOS/Linux/Windows arm64 builds are intentionally commented out for now.
 # Note: the arm64 Linux/Windows runners are free for public repos only.
 #
 # Triggers:
@@ -71,8 +71,8 @@ jobs:
       fail-fast: false
       matrix:
         # `arch` follows each platform's naming convention and ends up in
-        # the artifact/package names. macOS/Linux entries are kept commented
-        # below so they can be re-enabled later without rebuilding the matrix.
+        # the artifact/package names. Non-x64 entries are kept commented below
+        # so they can be re-enabled later without rebuilding the matrix.
         include:
           # - os: macos-latest # Apple Silicon
           #   platform: macos
@@ -83,9 +83,9 @@ jobs:
           - os: windows-latest
             platform: windows
             arch: x64
-          - os: windows-11-arm
-            platform: windows
-            arch: arm64
+          # - os: windows-11-arm
+          #   platform: windows
+          #   arch: arm64
           # - os: ubuntu-latest
           #   platform: linux
           #   arch: amd64
@@ -272,9 +272,8 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v') && matrix.platform == 'windows'
         shell: pwsh
         run: |
-          # windows-latest ships Inno Setup preinstalled; windows-11-arm
-          # does not, so install it via Chocolatey when missing (the x86
-          # compiler runs fine under arm64 emulation).
+          # windows-latest ships Inno Setup preinstalled, but keep the
+          # fallback install here in case the runner image changes.
           $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
           if (-not (Test-Path $iscc)) {
             choco install innosetup --no-progress -y

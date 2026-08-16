@@ -186,7 +186,22 @@ cd Video-Downloader
 # 2. Install dependencies into virtual environment
 uv sync
 
-# 3. Launch the desktop application
+# 3. Activate the virtual environment:
+# 🪟 PowerShell (Windows):
+.venv\Scripts\Activate.ps1
+# (Note: If PowerShell script execution is restricted, run once:
+#  Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser)
+
+# 🪟 Command Prompt (Windows):
+.venv\Scripts\activate.bat
+
+# 🍎/🐧 macOS & Linux (Bash/Zsh):
+source .venv/bin/activate
+
+# 4. Launch the desktop application
+python main.py
+
+# Or run directly via uv without manually activating:
 uv run python main.py
 
 # (Optional) Run in web development mode
