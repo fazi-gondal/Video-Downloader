@@ -11,8 +11,8 @@ APP_VERSION = "1.0.0"
 # Developer / project links shown in the About screen
 DEVELOPER_NAME = "Faizan Gondal"
 DEVELOPER_GITHUB_URL = "https://github.com/fazi-gondal"
-DEVELOPER_LINKEDIN_URL = "https://www.linkedin.com/in/wachu985/"
-DEVELOPER_WEBSITE_URL = "https://wachu985.hopto.net/"
+DEVELOPER_LINKEDIN_URL = "#"
+DEVELOPER_WEBSITE_URL = "https://codewithfazi.vercel.app/"
 REPO_URL = "https://github.com/fazi-gondal/Video-Downloader"
 REPO_ISSUES_URL = f"{REPO_URL}/issues"
 
