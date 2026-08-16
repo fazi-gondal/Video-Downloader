@@ -23,18 +23,16 @@ dev = [
 
 # Packaging metadata for `flet build <platform>`
 [tool.flet]
-org = "com.wachu985"
+org = "com.fazigondal"
 product = "Video Downloader"
 company = "fazigondal"
 copyright = "Copyright (C) 2026 Faizan Gondal"
 
-# Keep the native window hidden until the Python side reveals it
-# (app.py sets page.window.visible = True once the frameless UI is built).
-# Trade-off: if the embedded Python runtime fails to boot, the packaged
-# app's error screen stays in a hidden window and the app appears not to
-# open — acceptable, matches dev-mode FLET_APP_HIDDEN behavior.
+# Show the native window immediately in production. Hiding it makes startup
+# feel cleaner, but a Python boot failure can leave the error screen hidden
+# and make the desktop shortcut look like it did nothing.
 [tool.flet.app]
-hide_window_on_start = true
+hide_window_on_start = false
 exclude = [
     ".git",
     ".github",
