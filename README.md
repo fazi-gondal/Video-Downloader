@@ -138,16 +138,15 @@ Unlike basic wrappers, Video Downloader features:
 
 ### 1. Pre-Built Binaries
 
-Download the standalone package for your operating system from the [Latest Releases](../../releases/latest):
+Download the Windows x64 package from the [Latest Releases](../../releases/latest):
 
 | Operating System | Download File | Installation Instructions |
 | :--- | :--- | :--- |
-| 🪟 **Windows (x64)** | `VideoDownloader-windows-x64-setup.exe` | Run the installer. If SmartScreen appears, click **More info → Run anyway**. |
-| 🪟 **Windows (ARM64)** | `VideoDownloader-windows-arm64-setup.exe` | Same as above. |
-| 🍎 **macOS (Apple Silicon)** | `VideoDownloader-macos-arm64.dmg` | Open the DMG and drag **Video Downloader** to `Applications`. On first run: **Right-click → Open**. |
-| 🍎 **macOS (Intel)** | `VideoDownloader-macos-x86_64.dmg` | Same as above. |
-| 🐧 **Linux (Debian/Ubuntu)** | `VideoDownloader-linux-amd64.deb` | Run `sudo apt install ./VideoDownloader-linux-amd64.deb` |
-| 🐧 **Linux (Universal AppImage)** | `VideoDownloader-linux-x86_64.AppImage` | Run `chmod +x VideoDownloader-linux-x86_64.AppImage && ./VideoDownloader-linux-x86_64.AppImage` |
+| **Windows (x64)** | `VideoDownloader-windows-x64-setup.exe` | Run the installer. If SmartScreen appears, click **More info -> Run anyway**. |
+| **Windows (x64, zipped)** | `VideoDownloader-windows-x64-setup.zip` | Extract the zip, then run the setup `.exe` inside it. |
+
+> Windows ARM64, macOS, and Linux release builds are currently disabled in CI.
+> The local build commands below remain useful for development on those platforms.
 
 ---
 
@@ -161,7 +160,7 @@ YouTube requires solving JavaScript challenge signatures (n-sig / player challen
 | **macOS** | [Deno](https://deno.land) | `brew install deno` |
 | **Linux** | [Deno](https://deno.land) or Node.js | `sudo snap install deno` or `sudo apt install nodejs` |
 
-*The app automatically detects Deno, Node.js, and Bun and shows live status in **Settings → Dependencies**.*
+*The app automatically detects Deno, Node.js, and Bun and shows live status in **Settings -> Dependencies**.*
 
 ---
 
@@ -169,8 +168,18 @@ YouTube requires solving JavaScript challenge signatures (n-sig / player challen
 
 The app automatically searches for FFmpeg in the following order:
 1. **System `PATH`**: Custom or system-installed FFmpeg (`winget install ffmpeg`, `brew install ffmpeg`, `sudo apt install ffmpeg`).
-2. **Downloaded Toolchain**: Downloadable directly through **Settings → Download Full FFmpeg Toolchain** (`static-ffmpeg`).
+2. **Downloaded Toolchain**: Downloadable directly through **Settings -> Download Full FFmpeg Toolchain** (`static-ffmpeg`).
 3. **Bundled Fallback**: Built-in `imageio-ffmpeg` binary.
+
+---
+
+### 4. Startup Diagnostics
+
+On Windows, the production app opens the native window immediately during startup. If the app cannot start, it shows a visible error message instead of failing silently. Fatal startup errors are written to:
+
+```text
+%LOCALAPPDATA%\Fazi Gondal\VideoDownloader\Logs\app.log
+```
 
 ---
 
@@ -251,9 +260,14 @@ uv run flet build linux --yes
 
 ---
 
-### Automated Multi-Platform CI/CD
+### Automated Release CI/CD
 
-The workflow in [`.github/workflows/build.yml`](.github/workflows/build.yml) automatically compiles native installers for all 6 target platforms on every release tag:
+The workflow in [`.github/workflows/build.yml`](.github/workflows/build.yml) builds the Windows x64 release package on every `v*` tag. The release uploads both the setup installer and a maximum-compression zip containing the same setup `.exe`:
+
+- `VideoDownloader-windows-x64-setup.exe`
+- `VideoDownloader-windows-x64-setup.zip`
+
+Windows ARM64, macOS, and Linux matrix entries are kept commented out in the workflow and can be re-enabled later.
 
 ```bash
 # Create and push a version tag
@@ -272,32 +286,37 @@ Settings are stored in JSON format inside the OS user application directory:
 
 | Setting | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `download_path` | `str` | `~/Downloads/VideoDownloader` | Output destination directory. |
-| `max_concurrent_downloads` | `int` | `8` | Number of simultaneous download threads (1–16). |
+| `download_dir` | `str` | `~/Downloads/VideoDownloader` | Output destination directory. |
+| `max_concurrent` | `int` | `8` | Number of simultaneous download threads (1-16). |
+| `proxy` | `str` | `""` | Optional proxy URL (`http://...`, `socks5://...`). |
+| `cookies_browser` | `str` | `""` | Browser to extract session cookies from, or empty for disabled. |
+| `custom_headers` | `dict[str, str]` | `{}` | Extra HTTP headers for restricted servers. |
+| `rate_limit_kbps` | `int` | `0` | Speed cap per download task in KB/s; `0` means unlimited. |
+| `keep_originals` | `bool` | `True` | Keep source files after conversion or merging. |
+| `write_subtitles` | `bool` | `False` | Automatically download and embed subtitles. |
+| `subtitle_langs` | `list[str]` | `["all"]` | Subtitle languages to request. |
+| `multi_audio` | `bool` | `False` | Preserve multiple audio tracks when available. |
 | `embed_thumbnail` | `bool` | `True` | Embed thumbnail as cover art in output file. |
 | `embed_metadata` | `bool` | `True` | Embed title, artist, description, and chapters. |
-| `write_subtitles` | `bool` | `False` | Automatically download and embed all subtitles. |
-| `theme_mode` | `str` | `"system"` | UI Theme: `"system"`, `"dark"`, or `"light"`. |
-| `cookies_browser` | `str | None` | `None` | Browser to extract session cookies from. |
-| `proxy` | `str | None` | `None` | Proxy URL (`http://...`, `socks5://...`). |
-| `rate_limit_kbps` | `int | None` | `None` | Speed cap per download task in KB/s. |
+| `prefer_vp9_video` | `bool` | `True` | Prefer modern VP9/WebM video streams when available. |
+| `theme_mode` | `str` | `"system"` | UI theme: `"system"`, `"dark"`, or `"light"`. |
 
 ---
 
 ## Architecture & Design Principles
 
-```
+```text
 video_downloader/
-├── config/             # Constants, quality presets, settings model, and persistence
-├── core/               # Error taxonomy, event bus, typed events, and logging
-├── models/             # MediaInfo, FormatInfo, PlaylistInfo, DownloadTask, ConversionTask
-├── services/           # YtDlpService, FFmpegService, FormatBuilder, DownloadManager, HistoryService
-├── ui/
-│   ├── components/     # Reusable UI widgets (ChipGroup, FormatTable, FolderPicker, Cards)
-│   ├── views/          # Main views: DashboardView, ConfigView, DownloadsView, ConverterView, SettingsView
-│   ├── theme.py        # Nocturnal Studio design tokens, typography, and palette
-│   └── app.py          # AppShell, window chrome, navigation state, and lifecycle
-└── utils/              # Human formatting, path sanitization, and URL validators
+|-- config/             # Constants, quality presets, settings model, and persistence
+|-- core/               # Error taxonomy, event bus, typed events, and logging
+|-- models/             # MediaInfo, FormatInfo, PlaylistInfo, DownloadTask, ConversionTask
+|-- services/           # YtDlpService, FFmpegService, FormatBuilder, DownloadManager, HistoryService
+|-- ui/
+|   |-- components/     # Reusable UI widgets (ChipGroup, FormatTable, FolderPicker, Cards)
+|   |-- views/          # Main views: DashboardView, ConfigView, DownloadsView, ConverterView, SettingsView
+|   |-- theme.py        # Nocturnal Studio design tokens, typography, and palette
+|   `-- app.py          # AppShell, window chrome, navigation state, and lifecycle
+`-- utils/              # Human formatting, path sanitization, and URL validators
 ```
 
 ### Key Design Tenets:
