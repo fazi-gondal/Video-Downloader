@@ -339,6 +339,12 @@ Contributions, bug reports, and feature suggestions are welcome!
 
 ---
 
+## Credits
+
+This project is based on the original Video Downloader by Wachu985 and has been customized and extended in this repository.
+
+---
+
 ## License
 
 Distributed under the **MIT License**. See [`LICENSE`](LICENSE) for more information.
