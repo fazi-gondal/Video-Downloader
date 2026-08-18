@@ -11,7 +11,6 @@ import flet as ft
 from video_downloader.config.constants import ANALYSIS_TIMEOUT_SECONDS
 from video_downloader.core.errors import AppError
 from video_downloader.models.media import MediaInfo, PlaylistInfo
-from video_downloader.services.ytdlp_service import formats_for_display
 from video_downloader.ui import theme
 from video_downloader.ui.app import AppContext
 from video_downloader.ui.components.buttons import primary_button, secondary_button
@@ -316,6 +315,8 @@ class DashboardView(ft.Column):
             self.update()
 
     def _show_format_table(self, media: MediaInfo) -> None:
+        from video_downloader.services.ytdlp_service import formats_for_display
+
         self._formats_section.controls = [
             FormatTable(formats_for_display(media))
         ]

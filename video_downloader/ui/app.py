@@ -7,7 +7,7 @@ import importlib
 import logging
 import threading
 from collections.abc import Callable
-from typing import Protocol, cast
+from typing import TYPE_CHECKING, Protocol, cast
 
 import flet as ft
 
@@ -19,18 +19,19 @@ from video_downloader.core.events import (
     TaskQueued,
     TaskStateChanged,
 )
-from video_downloader.models.download import DownloadState
-from video_downloader.models.media import MediaInfo, PlaylistEntry, PlaylistInfo
-from video_downloader.services.conversion_service import ConversionService
-from video_downloader.services.download_manager import DownloadManager
-from video_downloader.services.ffmpeg_service import FFmpegService
-from video_downloader.services.history_service import HistoryService
-from video_downloader.services.notification_service import NotificationService
-from video_downloader.services.ytdlp_service import YtdlpService
 from video_downloader.ui import theme
 from video_downloader.ui.components.sidebar import Sidebar
 from video_downloader.ui.components.window_controls import WindowControls
 from video_downloader.ui.texts import t
+
+if TYPE_CHECKING:
+    from video_downloader.models.media import MediaInfo, PlaylistEntry, PlaylistInfo
+    from video_downloader.services.conversion_service import ConversionService
+    from video_downloader.services.download_manager import DownloadManager
+    from video_downloader.services.ffmpeg_service import FFmpegService
+    from video_downloader.services.history_service import HistoryService
+    from video_downloader.services.notification_service import NotificationService
+    from video_downloader.services.ytdlp_service import YtdlpService
 
 logger = logging.getLogger(__name__)
 
@@ -52,14 +53,12 @@ class AppContext:
         self.settings_repo = SettingsRepository()
         self.settings: AppSettings = self.settings_repo.load()
         self.bus = EventBus()
-        self.ffmpeg = FFmpegService()
-        self.ytdlp = YtdlpService(self.ffmpeg, lambda: self.settings)
-        self.download_manager = DownloadManager(
-            self.ytdlp, self.bus, max_concurrent=self.settings.max_concurrent
-        )
-        self.conversions = ConversionService(self.ffmpeg, self.bus)
+        self._ffmpeg: FFmpegService | None = None
+        self._ytdlp: YtdlpService | None = None
+        self._download_manager: DownloadManager | None = None
+        self._conversions: ConversionService | None = None
         self._history: HistoryService | None = None
-        self.notifications = NotificationService()
+        self._notifications: NotificationService | None = None
         # Analysis state shared between dashboard and config views
         self.current_media: MediaInfo | PlaylistInfo | None = None
         self.selected_entries: list[PlaylistEntry] = []
@@ -71,7 +70,8 @@ class AppContext:
 
     def save_settings(self) -> None:
         self.settings_repo.save(self.settings)
-        self.download_manager.set_max_concurrent(self.settings.max_concurrent)
+        if self._download_manager is not None:
+            self._download_manager.set_max_concurrent(self.settings.max_concurrent)
 
     def on_theme_change(self, callback: Callable[[], None]) -> None:
         self._theme_listeners.append(callback)
@@ -79,8 +79,52 @@ class AppContext:
     @property
     def history(self) -> HistoryService:
         if self._history is None:
+            from video_downloader.services.history_service import HistoryService
+
             self._history = HistoryService()
         return self._history
+
+    @property
+    def ffmpeg(self) -> FFmpegService:
+        if self._ffmpeg is None:
+            from video_downloader.services.ffmpeg_service import FFmpegService
+
+            self._ffmpeg = FFmpegService()
+        return self._ffmpeg
+
+    @property
+    def ytdlp(self) -> YtdlpService:
+        if self._ytdlp is None:
+            from video_downloader.services.ytdlp_service import YtdlpService
+
+            self._ytdlp = YtdlpService(self.ffmpeg, lambda: self.settings)
+        return self._ytdlp
+
+    @property
+    def download_manager(self) -> DownloadManager:
+        if self._download_manager is None:
+            from video_downloader.services.download_manager import DownloadManager
+
+            self._download_manager = DownloadManager(
+                self.ytdlp, self.bus, max_concurrent=self.settings.max_concurrent
+            )
+        return self._download_manager
+
+    @property
+    def conversions(self) -> ConversionService:
+        if self._conversions is None:
+            from video_downloader.services.conversion_service import ConversionService
+
+            self._conversions = ConversionService(self.ffmpeg, self.bus)
+        return self._conversions
+
+    @property
+    def notifications(self) -> NotificationService:
+        if self._notifications is None:
+            from video_downloader.services.notification_service import NotificationService
+
+            self._notifications = NotificationService()
+        return self._notifications
 
     def notify_theme_changed(self) -> None:
         for callback in self._theme_listeners:
@@ -197,6 +241,8 @@ class AppShell:
 
     def _on_task_state_changed(self, event: TaskStateChanged) -> None:
         """Record history and notify when a download reaches a terminal state."""
+        from video_downloader.models.download import DownloadState
+
         self._refresh_downloads_badge()
         task = self.ctx.download_manager.get(event.task_id)
         if task is None or not task.is_terminal:
