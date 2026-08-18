@@ -337,7 +337,6 @@ Contributions, bug reports, and feature suggestions are welcome!
 5. Push to the branch: `git push origin feature/amazing-feature`.
 6. Open a Pull Request.
 
----
 
 ## Credits
 
