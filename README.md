@@ -339,12 +339,15 @@ Contributions, bug reports, and feature suggestions are welcome!
 
 ---
 
+<<<<<<< HEAD
 ## Credits
 
 This project is based on the original [Video-Downloader by Wachu985](https://github.com/Wachu985/Video-Downloader) and has been customized and extended in this repository.
 
 ---
 
+=======
+>>>>>>> 1494b4c8c5c2a8c40dffd465a4df2ce527164a63
 ## License
 
 Distributed under the **MIT License**. See [`LICENSE`](LICENSE) for more information.
