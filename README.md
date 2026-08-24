@@ -91,7 +91,7 @@ Unlike basic wrappers, Video Downloader features:
 - **Containers**: MP4, MKV, WebM, AVI, MOV, TS.
 
 ### Multi-Language Audio Dubs
-- **Multi-Track Selection**: Detects and exposes all audio dub tracks for multi-language videos (such as MrBeast videos with 20+ languages).
+- **Multi-Track Selection**: Loads full audio dub details on demand for multi-language videos (such as MrBeast videos with 20+ languages), keeping the first URL analysis fast.
 - **Three Audio Modes**:
   - **Default**: Downloads the creator's primary audio track.
   - **All Tracks**: Downloads and merges all available language dubs.
@@ -112,9 +112,9 @@ Unlike basic wrappers, Video Downloader features:
 - **Codec-Aware**: Uses actual stream payloads (`filesize` / `filesize_approx` / `tbr`) for precision.
 
 ### Playlist & Channel Batch Processing
-- **Flat Playlist Analysis**: Rapidly extracts metadata for hundreds of playlist entries in seconds without freezing.
+- **Fast Playlist Analysis**: Uses a lightweight first pass to rapidly extract metadata for hundreds of playlist entries without freezing.
 - **Interactive Selection**: Select all, unselect all, or cherry-pick specific videos from a playlist.
-- **Smart Formatting**: Formats playlist items with structured naming: `Playlist Title/001 - Video Title.ext`.
+- **Smart Folder Naming**: Saves playlist videos inside a sanitized `Playlist Title/` folder while keeping each file name as the original video title.
 
 ### Built-In Media Converter
 - **Lossless Stream Copy**: Converts between compatible containers (e.g., MP4 to MKV) in fractions of a second using `-c copy`.
@@ -123,6 +123,7 @@ Unlike basic wrappers, Video Downloader features:
 
 ### Queue & Concurrency Management
 - **Concurrent Downloads**: Default concurrency set to **8** workers (customizable up to **16** in Settings).
+- **Connections Per Download**: Increase yt-dlp fragment connections per video for faster downloads on DASH/HLS sources.
 - **Live Metrics**: Real-time progress percentage, downloaded bytes, total size, download speed, and estimated time of arrival (ETA).
 - **Safe Task Cancellation**: Instant task cancellation with temporary file cleanup.
 
@@ -271,8 +272,8 @@ Windows ARM64, macOS, and Linux matrix entries are kept commented out in the wor
 
 ```bash
 # Create and push a version tag
-git tag v1.0.0
-git push origin v1.0.0
+git tag v1.1.0
+git push origin v1.1.0
 ```
 
 ---
@@ -288,6 +289,7 @@ Settings are stored in JSON format inside the OS user application directory:
 | :--- | :--- | :--- | :--- |
 | `download_dir` | `str` | `~/Downloads/VideoDownloader` | Output destination directory. |
 | `max_concurrent` | `int` | `8` | Number of simultaneous download threads (1-16). |
+| `concurrent_fragments` | `int` | `1` | Number of fragment connections per download (1-16); higher values can improve speed on DASH/HLS sources. |
 | `proxy` | `str` | `""` | Optional proxy URL (`http://...`, `socks5://...`). |
 | `cookies_browser` | `str` | `""` | Browser to extract session cookies from, or empty for disabled. |
 | `custom_headers` | `dict[str, str]` | `{}` | Extra HTTP headers for restricted servers. |

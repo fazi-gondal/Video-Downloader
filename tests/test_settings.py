@@ -9,6 +9,7 @@ def test_defaults_have_download_dir():
     settings = AppSettings()
     assert settings.download_dir
     assert settings.max_concurrent >= 1
+    assert settings.concurrent_fragments >= 1
     assert settings.prefer_vp9_video is True
 
 
@@ -17,6 +18,7 @@ def test_round_trip(tmp_path: Path):
     settings = AppSettings(
         download_dir="/tmp/videos",
         max_concurrent=4,
+        concurrent_fragments=8,
         proxy="http://proxy:1234",
         custom_headers={"X-A": "b"},
         prefer_vp9_video=False,

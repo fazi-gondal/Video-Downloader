@@ -10,7 +10,12 @@ from pathlib import Path
 
 import platformdirs
 
-from video_downloader.config.constants import APP_AUTHOR, APP_NAME, DEFAULT_MAX_CONCURRENT
+from video_downloader.config.constants import (
+    APP_AUTHOR,
+    APP_NAME,
+    DEFAULT_CONCURRENT_FRAGMENTS,
+    DEFAULT_MAX_CONCURRENT,
+)
 from video_downloader.utils.paths import default_download_dir
 
 logger = logging.getLogger(__name__)
@@ -20,6 +25,7 @@ logger = logging.getLogger(__name__)
 class AppSettings:
     download_dir: str = ""
     max_concurrent: int = DEFAULT_MAX_CONCURRENT
+    concurrent_fragments: int = DEFAULT_CONCURRENT_FRAGMENTS
     proxy: str = ""
     cookies_browser: str = ""  # "" = disabled; else chrome/firefox/safari/...
     custom_headers: dict[str, str] = field(default_factory=dict)

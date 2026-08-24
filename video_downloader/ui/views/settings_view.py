@@ -12,6 +12,7 @@ from video_downloader.config.constants import (
     COOKIE_BROWSERS,
     INSTALL_DENO_URL,
     INSTALL_FFMPEG_URL,
+    MAX_CONCURRENT_FRAGMENTS,
     MAX_CONCURRENT_LIMIT,
 )
 from video_downloader.ui import theme
@@ -217,6 +218,19 @@ class SettingsView(ft.Column):
             value=settings.max_concurrent,
             on_change=self._on_concurrent_change,
         )
+        self._fragments_label = ft.Text(
+            f"{t('concurrent_fragments')}: {settings.concurrent_fragments}",
+            size=13.5,
+            weight=ft.FontWeight.W_500,
+            color=ft.Colors.ON_SURFACE,
+        )
+        self._fragments = ft.Slider(
+            min=1,
+            max=MAX_CONCURRENT_FRAGMENTS,
+            divisions=MAX_CONCURRENT_FRAGMENTS - 1,
+            value=settings.concurrent_fragments,
+            on_change=self._on_fragments_change,
+        )
 
         self._proxy = ft.TextField(label=t("proxy"), value=settings.proxy, expand=True)
 
@@ -307,6 +321,7 @@ class SettingsView(ft.Column):
             t("section_downloads"),
             self._folder,
             ft.Column([self._concurrent_label, self._concurrent], spacing=2),
+            ft.Column([self._fragments_label, self._fragments], spacing=2),
             self._subtitles,
             self._subtitle_langs,
             self._multi_audio,
@@ -434,6 +449,10 @@ class SettingsView(ft.Column):
         self._folder.set_value(settings.download_path)
         self._concurrent.value = settings.max_concurrent
         self._concurrent_label.value = f"{t('max_concurrent')}: {settings.max_concurrent}"
+        self._fragments.value = settings.concurrent_fragments
+        self._fragments_label.value = (
+            f"{t('concurrent_fragments')}: {settings.concurrent_fragments}"
+        )
         self._proxy.value = settings.proxy
         self._cookies.value = settings.cookies_browser
         self._headers.value = "\n".join(
@@ -460,6 +479,12 @@ class SettingsView(ft.Column):
         )
         self.update()
 
+    def _on_fragments_change(self, e: ft.Event) -> None:
+        self._fragments_label.value = (
+            f"{t('concurrent_fragments')}: {int(self._fragments.value or 1)}"
+        )
+        self.update()
+
     def _on_theme_change(self, mode: str) -> None:
         # Apply live; persisted only when the user saves (like before).
         self.ctx.apply_theme_mode(mode, False)
@@ -468,6 +493,7 @@ class SettingsView(ft.Column):
         settings = self.ctx.settings
         settings.download_dir = str(self._folder.value)
         settings.max_concurrent = int(self._concurrent.value or 1)
+        settings.concurrent_fragments = int(self._fragments.value or 1)
         settings.proxy = (self._proxy.value or "").strip()
         settings.cookies_browser = self._cookies.value or ""
         settings.custom_headers = _parse_headers(self._headers.value or "")

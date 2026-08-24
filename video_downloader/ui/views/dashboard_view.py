@@ -308,6 +308,8 @@ class DashboardView(ft.Column):
             self._formats_button.content = t("explore_formats")
         else:
             media.formats = full.formats
+            media.subtitles = full.subtitles
+            media.audio_tracks = full.audio_tracks
             self.ctx.current_media = media
             self._show_format_table(media)
         finally:

@@ -21,6 +21,8 @@ from video_downloader.models.download import DownloadMode, DownloadRequest
 # BCP-47 language code pattern (e.g. 'en', 'de', 'zh-Hant', 'pt-BR')
 _LANG_CODE_RE = re.compile(r"^[a-z]{2,3}(-[A-Za-z]{2,4})?$")
 VP9_FORMAT_SORT = ["vcodec:vp9", "res", "fps", "acodec:opus", "acodec:m4a"]
+FAST_YOUTUBE_CLIENTS = ["web_embedded", "default"]
+RICH_YOUTUBE_CLIENTS = ["all"]
 
 
 def _audio_selector(track_key: str) -> str:
@@ -173,6 +175,10 @@ def build_ydl_opts(
 ) -> dict[str, Any]:
     """Full ``ydl_opts`` for one download (no hooks; the service adds those)."""
     output_dir = Path(req.output_dir).expanduser()
+    needs_rich_youtube_clients = bool(req.multi_audio or req.selected_audio_track_ids)
+    player_clients = (
+        RICH_YOUTUBE_CLIENTS if needs_rich_youtube_clients else FAST_YOUTUBE_CLIENTS
+    )
     opts: dict[str, Any] = {
         "format": build_format_selector(req),
         "outtmpl": str(output_dir / build_output_template(req)),
@@ -192,8 +198,12 @@ def build_ydl_opts(
         "js_runtimes": _get_js_runtimes(),
         # Use all player clients so YouTube exposes every language dub track
         # (e.g. MrBeast has 22 language audio tracks — only visible with client=all)
-        "extractor_args": {"youtube": {"player_client": ["all"]}},
+        "extractor_args": {"youtube": {"player_client": player_clients}},
     }
+    concurrent_fragments = max(1, int(settings.concurrent_fragments or 1))
+    if concurrent_fragments > 1:
+        opts["concurrent_fragment_downloads"] = concurrent_fragments
+
     if logger is not None:
         opts["logger"] = logger
 
@@ -271,8 +281,9 @@ def _get_js_runtimes() -> dict[str, dict[str, Any]]:
     return runtimes
 
 
-def build_analysis_opts(settings: AppSettings) -> dict[str, Any]:
+def build_analysis_opts(settings: AppSettings, *, rich: bool = False) -> dict[str, Any]:
     """Options for fast URL analysis (flat playlist extraction)."""
+    player_clients = RICH_YOUTUBE_CLIENTS if rich else FAST_YOUTUBE_CLIENTS
     opts: dict[str, Any] = {
         "extract_flat": "in_playlist",
         "skip_download": True,
@@ -284,8 +295,8 @@ def build_analysis_opts(settings: AppSettings) -> dict[str, Any]:
         "extractor_retries": 3,
         "remote_components": ["ejs:github"],
         "js_runtimes": _get_js_runtimes(),
-        # Expose all language dub audio tracks (e.g. MrBeast has 22 languages)
-        "extractor_args": {"youtube": {"player_client": ["all"]}},
+        # Keep first-pass analysis light; rich detail fetch opts into all clients.
+        "extractor_args": {"youtube": {"player_client": player_clients}},
     }
     if settings.proxy:
         opts["proxy"] = settings.proxy

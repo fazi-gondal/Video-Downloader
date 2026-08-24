@@ -35,6 +35,7 @@ from video_downloader.ui.components.status_pill import PILL_CORAL, StatusPill
 from video_downloader.ui.texts import t
 from video_downloader.ui.utils import safe_update
 from video_downloader.utils.formatting import human_bytes
+from video_downloader.utils.validators import sanitize_filename
 
 _CUSTOM_QUALITY = "Custom"
 
@@ -52,6 +53,10 @@ def _summary_chip(text: str) -> ft.Container:
         border_radius=ft.BorderRadius.all(6),
         padding=ft.Padding.symmetric(vertical=4, horizontal=10),
     )
+
+
+def _playlist_download_dir(base: Path, title: str) -> Path:
+    return base / sanitize_filename(title)
 
 
 class ConfigView(ft.Column):
@@ -550,7 +555,10 @@ class ConfigView(ft.Column):
         container = self._container_cg.value or "mp4"
         max_h = RESOLUTION_PRESETS.get(self._resolution_cg.value or "")
         max_fps = FPS_PRESETS.get(self._fps_cg.value or "")
-        video_fmt = self._find_best_video_format(formats, max_h, max_fps, container)
+        prefer_vp9 = bool(self.ctx.settings.prefer_vp9_video)
+        video_fmt = self._find_best_video_format(
+            formats, max_h, max_fps, container, prefer_vp9=prefer_vp9
+        )
 
         video_bytes = 0
         video_approx = False
@@ -590,7 +598,9 @@ class ConfigView(ft.Column):
                         audio_bytes += int(abr * 1000 * duration / 8)
                         audio_approx = True
             else:
-                best_a = self._find_best_audio_format(formats, container)
+                best_a = self._find_best_audio_format(
+                    formats, container, prefer_opus=prefer_vp9
+                )
                 if best_a:
                     sz, approx = self._format_size(best_a, duration)
                     if sz:
@@ -619,7 +629,9 @@ class ConfigView(ft.Column):
                         audio_approx = True
             else:
                 # Primary default audio track
-                best_a = self._find_best_audio_format(formats, container)
+                best_a = self._find_best_audio_format(
+                    formats, container, prefer_opus=prefer_vp9
+                )
                 if best_a:
                     sz, approx = self._format_size(best_a, duration)
                     if sz:
@@ -627,7 +639,9 @@ class ConfigView(ft.Column):
                         audio_approx = approx
         else:
             # Default single audio track
-            best_a = self._find_best_audio_format(formats, container)
+            best_a = self._find_best_audio_format(
+                formats, container, prefer_opus=prefer_vp9
+            )
             if best_a:
                 sz, approx = self._format_size(best_a, duration)
                 if sz:
@@ -671,6 +685,7 @@ class ConfigView(ft.Column):
         max_h: int | None,
         max_fps: int | None,
         container: str = "mp4",
+        prefer_vp9: bool = False,
     ) -> FormatInfo | None:
         candidates = [
             f
@@ -686,9 +701,18 @@ class ConfigView(ft.Column):
         highest_h = max(f.height or 0 for f in candidates)
         h_candidates = [f for f in candidates if (f.height or 0) == highest_h]
 
-        # 2. Prefer streams matching requested container (e.g. mp4 vs webm)
-        matching_ext = [f for f in h_candidates if f.ext == container]
-        pool = matching_ext if matching_ext else h_candidates
+        # 2. Match yt-dlp's download preference. When VP9 is preferred, the
+        # output may be remuxed to MKV but the downloaded stream is WebM/VP9.
+        vp9_candidates = [
+            f
+            for f in h_candidates
+            if f.ext == "webm" or (f.vcodec or "").lower().startswith(("vp9", "vp09"))
+        ]
+        if prefer_vp9 and vp9_candidates:
+            pool = vp9_candidates
+        else:
+            matching_ext = [f for f in h_candidates if f.ext == container]
+            pool = matching_ext if matching_ext else h_candidates
 
         # 3. Match format with highest fps and known size/bitrate
         return max(
@@ -701,12 +725,12 @@ class ConfigView(ft.Column):
 
     @staticmethod
     def _find_best_audio_format(
-        formats: list[FormatInfo], container: str = "mp4"
+        formats: list[FormatInfo], container: str = "mp4", prefer_opus: bool = False
     ) -> FormatInfo | None:
         candidates = [f for f in formats if f.stream_type is StreamType.AUDIO_ONLY]
         if not candidates:
             return None
-        preferred_ext = "m4a" if container == "mp4" else "webm"
+        preferred_ext = "webm" if prefer_opus else ("m4a" if container == "mp4" else "webm")
         matching = [f for f in candidates if f.ext == preferred_ext]
         pool = matching if matching else candidates
         return max(pool, key=lambda f: f.filesize or f.abr or f.tbr or 0)
@@ -765,6 +789,8 @@ class ConfigView(ft.Column):
                     timeout=ANALYSIS_TIMEOUT_SECONDS,
                 )
                 media.formats = full.formats
+                media.subtitles = full.subtitles
+                media.audio_tracks = full.audio_tracks
             table = FormatTable(
                 formats_for_display(media),
                 selectable=True,
@@ -911,12 +937,12 @@ class ConfigView(ft.Column):
 
         if isinstance(media, PlaylistInfo):
             entries = self.ctx.selected_entries or media.entries
+            output_dir = _playlist_download_dir(output_dir, media.title)
             return [
                 make(
                     url=entry.url,
                     title=entry.title,
-                    playlist_title=media.title,
-                    playlist_index=entry.index,
+                    thumbnail_url=media.thumbnail_url,
                 )
                 for entry in entries
             ]

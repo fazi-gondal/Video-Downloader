@@ -158,6 +158,7 @@ TEXTS: dict[str, str] = {
     "save_changes": "Save changes",
     "default_folder": "Default downloads folder",
     "max_concurrent": "Concurrent downloads",
+    "concurrent_fragments": "Connections per download",
     "proxy": "Proxy (http://user:pass@host:port)",
     "cookies_browser": "Browser cookies",
     "cookies_none": "Disabled",

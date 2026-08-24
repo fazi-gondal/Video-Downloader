@@ -6,7 +6,7 @@ APP_NAME = "VideoDownloader"
 APP_AUTHOR = "Fazi Gondal"
 APP_TITLE = "Video Downloader"
 # Keep in sync with [project] version in pyproject.toml on every release
-APP_VERSION = "1.0.0"
+APP_VERSION = "1.1.0"
 
 # Developer / project links shown in the About screen
 DEVELOPER_NAME = "Faizan Gondal"
@@ -81,6 +81,8 @@ COOKIE_BROWSERS: list[str] = [
 
 DEFAULT_MAX_CONCURRENT = 8
 MAX_CONCURRENT_LIMIT = 16
+DEFAULT_CONCURRENT_FRAGMENTS = 1
+MAX_CONCURRENT_FRAGMENTS = 16
 
 # Hard UI cap for interactive URL analysis: even if yt-dlp hangs beyond its
 # own (fail-fast) retries, the spinner never runs forever.
@@ -88,7 +90,7 @@ ANALYSIS_TIMEOUT_SECONDS = 75
 
 # Output filename template for yt-dlp
 OUTPUT_TEMPLATE = "%(title)s.%(ext)s"
-PLAYLIST_OUTPUT_TEMPLATE = "%(playlist_title)s/%(playlist_index)03d - %(title)s.%(ext)s"
+PLAYLIST_OUTPUT_TEMPLATE = OUTPUT_TEMPLATE
 
 # Progress events forwarded to the UI at most this often per task (seconds)
 PROGRESS_THROTTLE_SECONDS = 0.2

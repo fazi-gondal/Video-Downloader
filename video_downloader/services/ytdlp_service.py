@@ -62,7 +62,7 @@ class YtdlpService:
         if not is_valid_url(url):
             raise UnsupportedUrlError(f"Not a valid URL: {url!r}")
 
-        opts = format_builder.build_analysis_opts(self._settings_provider())
+        opts = format_builder.build_analysis_opts(self._settings_provider(), rich=False)
         opts["logger"] = ytdlp_logger
         info = self._extract(url, opts)
 
@@ -72,7 +72,7 @@ class YtdlpService:
 
     def fetch_formats(self, url: str) -> MediaInfo:
         """Full (non-flat) extraction of a single video, including formats."""
-        opts = format_builder.build_analysis_opts(self._settings_provider())
+        opts = format_builder.build_analysis_opts(self._settings_provider(), rich=True)
         opts.pop("extract_flat", None)
         opts["noplaylist"] = True
         opts["logger"] = ytdlp_logger
@@ -253,6 +253,9 @@ class YtdlpService:
             }
             if ffmpeg_loc := self._ffmpeg.ytdlp_location_arg():
                 o["ffmpeg_location"] = ffmpeg_loc
+            concurrent_fragments = max(1, int(settings.concurrent_fragments or 1))
+            if concurrent_fragments > 1:
+                o["concurrent_fragment_downloads"] = concurrent_fragments
             if settings.proxy:
                 o["proxy"] = settings.proxy
             if settings.cookies_browser:

@@ -151,6 +151,7 @@ class TestYdlOpts:
         assert opts["continuedl"] is True
         assert opts["quiet"] is True
         assert opts["noplaylist"] is True
+        assert opts["extractor_args"]["youtube"]["player_client"] == fb.FAST_YOUTUBE_CLIENTS
 
     def test_vp9_preference_forces_mkv_and_sort_order(self):
         req = make_request(container="mp4", max_height=1080, prefer_vp9_video=True)
@@ -194,13 +195,19 @@ class TestYdlOpts:
             cookies_browser="firefox",
             custom_headers={"X-Test": "1"},
             rate_limit_kbps=500,
+            concurrent_fragments=8,
         )
         opts = fb.build_ydl_opts(make_request(), settings, None)
         assert opts["proxy"] == "http://localhost:8080"
         assert opts["cookiesfrombrowser"] == ("firefox",)
         assert opts["http_headers"] == {"X-Test": "1"}
         assert opts["ratelimit"] == 500 * 1024
+        assert opts["concurrent_fragment_downloads"] == 8
         assert "ffmpeg_location" not in opts
+
+    def test_default_fragment_concurrency_preserves_yt_dlp_default(self):
+        opts = fb.build_ydl_opts(make_request(), AppSettings(concurrent_fragments=1), None)
+        assert "concurrent_fragment_downloads" not in opts
 
     def test_subtitles_and_thumbnail(self):
         req = make_request(write_subtitles=True, embed_thumbnail=True)
@@ -219,21 +226,30 @@ class TestYdlOpts:
         req = make_request(multi_audio=True)
         opts = fb.build_ydl_opts(req, AppSettings(), None)
         assert opts["audio_multistreams"] is True
+        assert opts["extractor_args"]["youtube"]["player_client"] == fb.RICH_YOUTUBE_CLIENTS
 
     def test_selected_audio_multistreams_opts(self):
         req = make_request(selected_audio_track_ids=("251-en", "251-es"))
         opts = fb.build_ydl_opts(req, AppSettings(), None)
         assert opts["audio_multistreams"] is True
+        assert opts["extractor_args"]["youtube"]["player_client"] == fb.RICH_YOUTUBE_CLIENTS
 
     def test_playlist_output_template(self):
         req = make_request(playlist_title="Mi lista", playlist_index=3)
         opts = fb.build_ydl_opts(req, AppSettings(), None)
-        assert "%(playlist_index)03d" in opts["outtmpl"]
+        assert "%(title)s.%(ext)s" in opts["outtmpl"]
+        assert "%(playlist_title)s" not in opts["outtmpl"]
+        assert "%(playlist_index)" not in opts["outtmpl"]
 
     def test_analysis_opts_flat(self):
         opts = fb.build_analysis_opts(AppSettings())
         assert opts["extract_flat"] == "in_playlist"
         assert opts["skip_download"] is True
+        assert opts["extractor_args"]["youtube"]["player_client"] == fb.FAST_YOUTUBE_CLIENTS
+
+    def test_rich_analysis_opts_use_all_youtube_clients(self):
+        opts = fb.build_analysis_opts(AppSettings(), rich=True)
+        assert opts["extractor_args"]["youtube"]["player_client"] == fb.RICH_YOUTUBE_CLIENTS
 
     def test_analysis_opts_fail_fast(self):
         # Interactive analysis must not inherit yt-dlp's default infinite/long retry chains:
