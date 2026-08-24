@@ -1,8 +1,8 @@
 """Tests for download configuration helpers."""
 
-from video_downloader.models.media import FormatInfo, StreamType
 from pathlib import Path
 
+from video_downloader.models.media import FormatInfo, StreamType
 from video_downloader.ui.views.config_view import ConfigView, _playlist_download_dir
 
 
