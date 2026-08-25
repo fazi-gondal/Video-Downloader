@@ -218,6 +218,12 @@ uv run python main.py
 uv run flet run --web main.py
 ```
 
+**💡 If you are running the app for the first time on Windows, you will need to activate the virtual environment:**
+
+```powershell
+.venv\Scripts\Activate.ps1
+```
+
 ---
 
 ## Testing & Quality Assurance
