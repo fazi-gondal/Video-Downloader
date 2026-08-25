@@ -340,12 +340,6 @@ Contributions, bug reports, and feature suggestions are welcome!
 6. Open a Pull Request.
 
 
-## Credits
-
-This project is based on the original [Video-Downloader by Wachu985](https://github.com/Wachu985/Video-Downloader) and has been customized and extended in this repository.
-
----
-
 ## License
 
 Distributed under the **MIT License**. See [`LICENSE`](LICENSE) for more information.
