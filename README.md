@@ -13,7 +13,7 @@
   <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/Python-3.13+-3776AB?style=flat&logo=python&logoColor=white" alt="Python 3.13+"></a>
   <a href="https://flet.dev"><img src="https://img.shields.io/badge/Flet-0.86+-009688?style=flat&logo=flutter&logoColor=white" alt="Flet 0.86+"></a>
   <a href="https://github.com/yt-dlp/yt-dlp"><img src="https://img.shields.io/badge/yt--dlp-Latest-red?style=flat&logo=youtube&logoColor=white" alt="yt-dlp"></a>
-  <a href="https://ffmpeg.org"><img src="https://img.shields.io/badge/FFmpeg-5.0+-007808?style=flat&logo=ffmpeg&logoColor=white" alt="FFmpeg"></a>
+  <a href="https://ffmpeg.org"><img src="https://img.shields.io/badge/FFmpeg-8.0+-007808?style=flat&logo=ffmpeg&logoColor=white" alt="FFmpeg"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat" alt="License: MIT"></a>
   <a href="https://github.com/astral-sh/uv"><img src="https://img.shields.io/badge/Package%20Manager-uv-blueviolet?style=flat" alt="uv package manager"></a>
 </p>
