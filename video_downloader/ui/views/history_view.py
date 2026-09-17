@@ -72,7 +72,7 @@ class HistoryView(ft.Column):
         self._search_field = ft.TextField(
             hint_text=t("history_search_hint"),
             expand=True,
-            border=ft.InputBorder.NONE,
+            border=ft.NoInputBorder() if hasattr(ft, "NoInputBorder") else ft.InputBorder.NONE,
             text_style=theme.body_md(),
             on_change=lambda e: self._apply_filters(),
         )

@@ -191,11 +191,15 @@ class FFmpegService:
                 ],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=30,
                 check=True,
             )
+            if not result.stdout:
+                return None
             return json.loads(result.stdout)
-        except (subprocess.SubprocessError, json.JSONDecodeError, OSError) as exc:
+        except Exception as exc:
             logger.warning("ffprobe failed for %s: %s", src, exc)
             return None
 
@@ -312,6 +316,8 @@ class FFmpegService:
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
+            encoding="utf-8",
+            errors="replace",
         )
         try:
             assert process.stdout is not None
@@ -418,7 +424,12 @@ class FFmpegService:
 
         logger.info("Merging %d audio tracks: %s", len(extra_audio) + 1, " ".join(cmd))
         process = subprocess.Popen(
-            cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
         )
         try:
             # communicate() drains stdout and stderr concurrently, avoiding OS pipe deadlocks

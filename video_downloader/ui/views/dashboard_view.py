@@ -45,7 +45,7 @@ class DashboardView(ft.Column):
         self._url_field = ft.TextField(
             hint_text=t("url_hint"),
             expand=True,
-            border=ft.InputBorder.NONE,
+            border=ft.NoInputBorder() if hasattr(ft, "NoInputBorder") else ft.InputBorder.NONE,
             text_style=theme.body_lg(),
             on_submit=self._on_analyze,
         )
