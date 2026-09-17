@@ -279,8 +279,8 @@ Windows ARM64, macOS, and Linux matrix entries are kept commented out in the wor
 
 ```bash
 # Create and push a version tag
-git tag v1.1.0
-git push origin v1.1.0
+git tag v1.2.1
+git push origin v1.2.1
 ```
 
 ---
