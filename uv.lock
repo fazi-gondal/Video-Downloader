@@ -1481,7 +1481,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "flet", extras = ["cli", "desktop"], specifier = ">=0.86.5" },
+    { name = "flet", extras = ["cli", "desktop"], specifier = ">=1.0.0" },
     { name = "imageio-ffmpeg", specifier = ">=0.5" },
     { name = "platformdirs", specifier = ">=4.10.0" },
     { name = "static-ffmpeg", specifier = ">=3.0" },
