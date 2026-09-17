@@ -277,11 +277,26 @@ class FFmpegService:
     def _reencode_args(target_container: str) -> list[str]:
         target = target_container.lower()
         if target == "webm":
-            return ["-c:v", "libvpx-vp9", "-crf", "32", "-b:v", "0", "-c:a", "libopus"]
+            return [
+                "-c:v", "libvpx-vp9",
+                "-crf", "32",
+                "-b:v", "0",
+                "-row-mt", "1",
+                "-threads", "0",
+                "-speed", "4",
+                "-c:a", "libopus",
+            ]
         if target == "avi":
             return ["-c:v", "mpeg4", "-q:v", "4", "-c:a", "libmp3lame", "-q:a", "3"]
         # mp4 / mkv default: H.264 + AAC
-        return ["-c:v", "libx264", "-crf", "20", "-preset", "medium", "-c:a", "aac"]
+        return [
+            "-c:v", "libx264",
+            "-crf", "22",
+            "-preset", "faster",
+            "-threads", "0",
+            "-c:a", "aac",
+            "-b:a", "192k",
+        ]
 
     @staticmethod
     def _output_path(src: Path, target_ext: str) -> Path:
@@ -304,8 +319,11 @@ class FFmpegService:
         duration = self.media_duration(src)
         cmd = [
             str(location.ffmpeg_path),
-            "-y", "-hide_banner", "-nostats",
+            "-y", "-nostdin", "-hide_banner", "-nostats",
             "-i", str(src),
+            # Map video and audio streams, ignoring incompatible attachments/data
+            "-map", "0:v?",
+            "-map", "0:a?",
             *codec_args,
             "-progress", "pipe:1",
             str(dst),
@@ -319,6 +337,17 @@ class FFmpegService:
             encoding="utf-8",
             errors="replace",
         )
+
+        stderr_lines: list[str] = []
+
+        def _drain_stderr() -> None:
+            if process.stderr:
+                for err_line in process.stderr:
+                    stderr_lines.append(err_line)
+
+        stderr_thread = threading.Thread(target=_drain_stderr, daemon=True)
+        stderr_thread.start()
+
         try:
             assert process.stdout is not None
             for line in process.stdout:
@@ -341,8 +370,11 @@ class FFmpegService:
                 process.kill()
                 process.wait()
             raise
+        finally:
+            stderr_thread.join(timeout=1.0)
+
         if returncode != 0:
-            stderr = process.stderr.read() if process.stderr else ""
+            stderr = "".join(stderr_lines)
             dst.unlink(missing_ok=True)
             logger.error("ffmpeg failed (%s): %s", returncode, stderr[-2000:])
             raise ConversionError(f"ffmpeg exited with code {returncode}", detail=stderr[-2000:])
