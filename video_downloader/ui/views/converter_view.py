@@ -37,9 +37,16 @@ from video_downloader.ui.utils import run_task, safe_update
 from video_downloader.utils.paths import open_in_file_manager
 
 _AUDIO_EXTENSIONS = {"mp3", "m4a", "aac", "flac", "opus", "wav", "ogg", "wma"}
-_MEDIA_EXTENSIONS = sorted(
-    _AUDIO_EXTENSIONS | {"mp4", "mkv", "webm", "avi", "mov", "flv", "ts", "m4v"}
-)
+_VIDEO_EXTENSIONS = {"mp4", "mkv", "webm", "avi", "mov", "flv", "ts", "m4v"}
+_MEDIA_EXTENSIONS = sorted(_AUDIO_EXTENSIONS | _VIDEO_EXTENSIONS)
+
+# Video targets offered when a video file is loaded.
+# "mp3" is appended so the user can extract audio directly.
+_VIDEO_TARGETS = CONVERSION_VIDEO_CONTAINERS + ["mp3"]
+
+# Audio formats that should be extracted at 320 kbps when chosen from the video list
+_AUDIO_EXTRACT_FORMAT = "mp3"
+_AUDIO_EXTRACT_BITRATE = 320
 
 
 def _section_title(text: str) -> ft.Text:
@@ -158,8 +165,9 @@ class ConverterView(ft.Column):
         )
 
         # --- Output options ---------------------------------------------------
+        # Video chip list includes "mp3" so users can extract audio directly.
         self._video_cg = ChipGroup(
-            CONVERSION_VIDEO_CONTAINERS,
+            _VIDEO_TARGETS,
             accent=ft.Colors.SECONDARY,
             on_change=self._on_target_change,
         )
@@ -267,15 +275,22 @@ class ConverterView(ft.Column):
     # ------------------------------------------------------------------
 
     @property
-    def _kind(self) -> MediaKind:
-        if self._source and self._source.suffix.lstrip(".").lower() in _AUDIO_EXTENSIONS:
-            return MediaKind.AUDIO
-        return MediaKind.VIDEO
+    def _is_native_audio(self) -> bool:
+        """True if the loaded file is natively an audio file (not a video)."""
+        return bool(
+            self._source
+            and self._source.suffix.lstrip(".").lower() in _AUDIO_EXTENSIONS
+        )
 
     @property
     def _target(self) -> str:
-        cg = self._audio_cg if self._kind is MediaKind.AUDIO else self._video_cg
+        cg = self._audio_cg if self._is_native_audio else self._video_cg
         return cg.value or ""
+
+    @property
+    def _is_audio_extraction(self) -> bool:
+        """True when a video file is loaded and the user selected an audio format."""
+        return not self._is_native_audio and self._target == _AUDIO_EXTRACT_FORMAT
 
     async def _pick_file(self, e: ft.Event) -> None:
         files = await self._picker.pick_files(
@@ -287,7 +302,7 @@ class ConverterView(ft.Column):
         self._source = Path(files[0].path)
         self._file_text.value = str(self._source)
         self._file_text.color = ft.Colors.ON_SURFACE
-        is_audio = self._kind is MediaKind.AUDIO
+        is_audio = self._is_native_audio
         self._audio_cg.visible = is_audio
         self._video_cg.visible = not is_audio
         self._convert_btn.disabled = not self.ctx.ffmpeg.is_available
@@ -302,19 +317,20 @@ class ConverterView(ft.Column):
     async def _refresh_badge(self) -> None:
         if self._source is None:
             return
-        if self._kind is MediaKind.AUDIO:
-            # Audio conversion always re-encodes (except same-format copy)
+        if self._is_native_audio or self._is_audio_extraction:
+            # Audio jobs always re-encode
             self._can_remux = False
-            remux = False
+            label = t("extract_audio_badge") if self._is_audio_extraction else t("reencode_badge")
+            self._badge.set_state(label, PILL_AMBER)
         else:
             self._can_remux = await asyncio.to_thread(
                 self.ctx.ffmpeg.can_remux, self._source, self._target
             )
             remux = self._can_remux
-        self._badge.set_state(
-            t("remux_badge") if remux else t("reencode_badge"),
-            PILL_GREEN if remux else PILL_AMBER,
-        )
+            self._badge.set_state(
+                t("remux_badge") if remux else t("reencode_badge"),
+                PILL_GREEN if remux else PILL_AMBER,
+            )
         self._badge.visible = True
         self.update()
 
@@ -323,17 +339,24 @@ class ConverterView(ft.Column):
     def _on_convert(self, e: ft.Event) -> None:
         if self._source is None or not self._target:
             return
-        kind = self._kind
+        is_audio = self._is_native_audio or self._is_audio_extraction
+        kind = MediaKind.AUDIO if is_audio else MediaKind.VIDEO
         mode = (
             ConversionMode.REMUX
             if kind is MediaKind.VIDEO and self._can_remux
             else ConversionMode.REENCODE
         )
+        # For audio extraction from video, pass the fixed 320 kbps bitrate.
+        # For lossless formats (flac/wav) no bitrate is needed.
+        audio_bitrate: int | None = None
+        if kind is MediaKind.AUDIO and self._target not in ("flac", "wav"):
+            audio_bitrate = _AUDIO_EXTRACT_BITRATE
         request = ConversionRequest(
             source=self._source,
             target_format=self._target,
             kind=kind,
             mode=mode,
+            audio_bitrate_kbps=audio_bitrate,
             keep_original=bool(self._keep_cb.value),
         )
         self.ctx.conversions.enqueue(request)

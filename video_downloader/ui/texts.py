@@ -132,6 +132,7 @@ TEXTS: dict[str, str] = {
     "converter_queue": "Job queue",
     "no_conversions": "Conversions will appear here.",
     "converter_drop_hint": "Choose a local video or audio file",
+    "extract_audio_badge": "Audio extraction (320 kbps)",
     # Settings
     "settings_title": "System Settings",
     "settings_subtitle": "Appearance, downloads, network, and dependencies.",
