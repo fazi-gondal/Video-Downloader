@@ -8,7 +8,7 @@ APP_NAME = "VideoDownloader"
 APP_AUTHOR = "Fazi Gondal"
 APP_TITLE = "Video Downloader"
 # Keep in sync with [project] version in pyproject.toml on every release
-APP_VERSION = "1.1.0"
+APP_VERSION = "1.2.1"
 
 # Developer / project links shown in the About screen
 DEVELOPER_NAME = "Faizan Gondal"
