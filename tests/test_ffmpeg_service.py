@@ -3,6 +3,7 @@
 from pathlib import Path
 from unittest import mock
 
+from video_downloader.config.constants import BUNDLED_FFMPEG_NAME, BUNDLED_FFPROBE_NAME
 from video_downloader.models.conversion import ConversionMode
 from video_downloader.services.ffmpeg_service import FFmpegService
 
@@ -21,6 +22,30 @@ def test_resolves_system_ffmpeg():
     assert service.is_available
     # both binaries in the same dir -> pass the directory to yt-dlp
     assert service.ytdlp_location_arg() == str(Path("/usr/local/bin"))
+
+
+def test_bundled_app_toolchain_preferred_over_system(tmp_path: Path):
+    service = FFmpegService()
+    ffmpeg = tmp_path / "ffmpeg.exe"
+    ffprobe = tmp_path / "ffprobe.exe"
+    ffmpeg.write_text("", encoding="utf-8")
+    ffprobe.write_text("", encoding="utf-8")
+
+    def bundled(name: str) -> Path | None:
+        return {
+            BUNDLED_FFMPEG_NAME: ffmpeg,
+            BUNDLED_FFPROBE_NAME: ffprobe,
+        }.get(name)
+
+    with mock.patch(
+        "video_downloader.services.ffmpeg_service.find_bundled_tool", side_effect=bundled
+    ), mock.patch("shutil.which", side_effect=lambda name: f"/usr/local/bin/{name}"):
+        location = service.resolve()
+
+    assert location.source == "bundled_full"
+    assert location.ffmpeg_path == ffmpeg
+    assert location.ffprobe_path == ffprobe
+    assert service.ytdlp_location_arg() == str(tmp_path)
 
 
 def test_static_toolchain_preferred_over_imageio():

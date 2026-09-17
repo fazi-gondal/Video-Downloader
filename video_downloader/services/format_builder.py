@@ -266,18 +266,12 @@ def build_ydl_opts(
 
 
 def _get_js_runtimes() -> dict[str, dict[str, Any]]:
-    import shutil
+    from video_downloader.utils.env import find_executable
 
     runtimes: dict[str, dict[str, Any]] = {"deno": {}, "node": {}, "bun": {}}
-    node_exe = shutil.which("node")
-    if node_exe:
-        runtimes["node"] = {"path": node_exe}
-    deno_exe = shutil.which("deno")
-    if deno_exe:
-        runtimes["deno"] = {"path": deno_exe}
-    bun_exe = shutil.which("bun")
-    if bun_exe:
-        runtimes["bun"] = {"path": bun_exe}
+    for name in runtimes:
+        if executable := find_executable(name):
+            runtimes[name] = {"path": str(executable)}
     return runtimes
 
 

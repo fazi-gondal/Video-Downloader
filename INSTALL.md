@@ -22,8 +22,8 @@ detects something is missing (Settings → Dependencies).
 
 Download the file for your platform from the
 [latest release](https://github.com/Wachu985/Video-Downloader/releases/latest).
-Everything is bundled: you do **not** need Python, yt-dlp or FFmpeg
-installed to use the app.
+Windows release installers bundle Python, yt-dlp, Deno, FFmpeg and ffprobe,
+so no separate runtime install is needed for normal YouTube downloads.
 
 <a id="macos"></a>
 
@@ -85,9 +85,11 @@ chmod +x VideoDownloader-linux-x86_64.AppImage   # or -aarch64
 
 ## Deno — JavaScript engine (required for YouTube)
 
-**Without this, most YouTube downloads fail.** YouTube requires solving
-JavaScript challenges and the app needs a JS engine installed on your
-system. We recommend [Deno](https://deno.land) (Node.js or Bun also work).
+Windows release installers include Deno. Install it manually only for
+development builds, portable/source runs, non-Windows packages, or if the
+Settings dependency card reports that no JavaScript engine is available.
+YouTube requires solving JavaScript challenges; we recommend
+[Deno](https://deno.land), while Node.js or Bun also work.
 
 | Platform | Command |
 |---|---|
@@ -108,10 +110,10 @@ turn green.
 
 ## FFmpeg (optional, recommended)
 
-The app **works without installing FFmpeg**: it ships a fallback binary
-and downloads the full toolchain (ffmpeg + ffprobe) in the background on
-first run. Still, a system FFmpeg is the most reliable option and always
-takes priority:
+Windows release installers include the full FFmpeg toolchain (`ffmpeg` and
+`ffprobe`). The app still works with system FFmpeg, cached `static-ffmpeg`
+toolchains, or the `imageio-ffmpeg` fallback when the bundled tools are not
+present:
 
 | Platform | Command |
 |---|---|
@@ -121,7 +123,7 @@ takes priority:
 
 What each state of the "FFmpeg status" card in Settings means:
 
-- 🟢 **System FFmpeg** or **full bundled toolchain** — everything
+- 🟢 **Bundled toolchain**, **system FFmpeg** or **cached full toolchain** — everything
   available.
 - 🟡 **Bundled without ffprobe** — functional; the full version is being
   downloaded in the background and the app notifies you when it's ready.

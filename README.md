@@ -153,7 +153,7 @@ Download the Windows x64 package from the [Latest Releases](../../releases/lates
 
 ### 2. JavaScript Engine Setup (YouTube)
 
-YouTube requires solving JavaScript challenge signatures (n-sig / player challenges). Installing a lightweight JS runtime ensures 100% download reliability without throttling:
+YouTube requires solving JavaScript challenge signatures (n-sig / player challenges). Windows release installers include `deno.exe`, so no separate setup is needed for normal production installs. For development builds, portable runs, or non-Windows packages, install a lightweight JS runtime:
 
 | Platform | Recommended Engine | Installation Command |
 | :--- | :--- | :--- |
@@ -161,16 +161,17 @@ YouTube requires solving JavaScript challenge signatures (n-sig / player challen
 | **macOS** | [Deno](https://deno.land) | `brew install deno` |
 | **Linux** | [Deno](https://deno.land) or Node.js | `sudo snap install deno` or `sudo apt install nodejs` |
 
-*The app automatically detects Deno, Node.js, and Bun and shows live status in **Settings -> Dependencies**.*
+*The app automatically prefers bundled Deno, then detects Deno, Node.js, and Bun from your system and shows live status in **Settings -> Dependencies**.*
 
 ---
 
 ### 3. FFmpeg Integration
 
 The app automatically searches for FFmpeg in the following order:
-1. **System `PATH`**: Custom or system-installed FFmpeg (`winget install ffmpeg`, `brew install ffmpeg`, `sudo apt install ffmpeg`).
-2. **Downloaded Toolchain**: Downloadable directly through **Settings -> Download Full FFmpeg Toolchain** (`static-ffmpeg`).
-3. **Bundled Fallback**: Built-in `imageio-ffmpeg` binary.
+1. **App-bundled toolchain**: Windows release installers include `ffmpeg.exe` and `ffprobe.exe`.
+2. **System `PATH`**: Custom or system-installed FFmpeg (`winget install ffmpeg`, `brew install ffmpeg`, `sudo apt install ffmpeg`).
+3. **Cached Toolchain**: Existing `static-ffmpeg` downloads from earlier app versions.
+4. **Bundled Fallback**: Built-in `imageio-ffmpeg` binary when only `ffmpeg` is available.
 
 ---
 

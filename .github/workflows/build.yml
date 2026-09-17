@@ -29,6 +29,8 @@ env:
   PYTHON_VERSION: "3.13"
   # Keep in sync with the uv version used locally
   UV_VERSION: "0.11.2"
+  DENO_VERSION: "v2.5.6"
+  FFMPEG_WINDOWS_URL: "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip"
   # The Windows runner console defaults to cp1252; flet's progress spinner
   # prints Unicode (●) and crashes rich without this.
   PYTHONUTF8: "1"
@@ -136,10 +138,46 @@ jobs:
       - name: Install project dependencies
         run: uv sync --frozen
 
+      - name: Bundle Windows runtime tools
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          $tools = "assets/bin/windows-x64"
+          New-Item -ItemType Directory -Force -Path $tools | Out-Null
+
+          $denoZip = Join-Path $env:RUNNER_TEMP "deno.zip"
+          Invoke-WebRequest `
+            "https://github.com/denoland/deno/releases/download/$env:DENO_VERSION/deno-x86_64-pc-windows-msvc.zip" `
+            -OutFile $denoZip
+          Expand-Archive -Force $denoZip (Join-Path $env:RUNNER_TEMP "deno")
+          Copy-Item (Join-Path $env:RUNNER_TEMP "deno/deno.exe") (Join-Path $tools "deno.exe") -Force
+
+          $ffmpegZip = Join-Path $env:RUNNER_TEMP "ffmpeg.zip"
+          Invoke-WebRequest $env:FFMPEG_WINDOWS_URL -OutFile $ffmpegZip
+          Expand-Archive -Force $ffmpegZip (Join-Path $env:RUNNER_TEMP "ffmpeg")
+          $ffmpegRoot = Get-ChildItem (Join-Path $env:RUNNER_TEMP "ffmpeg") -Directory | Select-Object -First 1
+          if (-not $ffmpegRoot) { throw "FFmpeg archive root not found" }
+          Copy-Item (Join-Path $ffmpegRoot.FullName "bin/ffmpeg.exe") (Join-Path $tools "ffmpeg.exe") -Force
+          Copy-Item (Join-Path $ffmpegRoot.FullName "bin/ffprobe.exe") (Join-Path $tools "ffprobe.exe") -Force
+
+          Get-ChildItem $tools
+
       # --yes lets flet download the exact Flutter SDK version required by
       # the pinned flet release (deterministic: it comes from uv.lock).
       - name: Build (${{ matrix.platform }} ${{ matrix.arch }})
         run: uv run flet build ${{ matrix.platform }} -v --yes
+
+      - name: Verify bundled Windows runtime tools
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          foreach ($name in @("deno.exe", "ffmpeg.exe", "ffprobe.exe")) {
+            $match = Get-ChildItem build/windows -Recurse -Filter $name | Select-Object -First 1
+            if (-not $match) {
+              throw "$name was not included in build/windows"
+            }
+            Write-Host "$name bundled at $($match.FullName)"
+          }
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7.0.1

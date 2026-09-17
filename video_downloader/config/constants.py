@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 APP_NAME = "VideoDownloader"
 APP_AUTHOR = "Fazi Gondal"
 APP_TITLE = "Video Downloader"
@@ -83,6 +85,11 @@ DEFAULT_MAX_CONCURRENT = 8
 MAX_CONCURRENT_LIMIT = 16
 DEFAULT_CONCURRENT_FRAGMENTS = 1
 MAX_CONCURRENT_FRAGMENTS = 16
+
+BUNDLED_TOOLS_DIR = Path("assets") / "bin" / "windows-x64"
+BUNDLED_DENO_NAME = "deno"
+BUNDLED_FFMPEG_NAME = "ffmpeg"
+BUNDLED_FFPROBE_NAME = "ffprobe"
 
 # Hard UI cap for interactive URL analysis: even if yt-dlp hangs beyond its
 # own (fail-fast) retries, the spinner never runs forever.

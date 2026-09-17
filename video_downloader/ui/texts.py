@@ -185,7 +185,7 @@ TEXTS: dict[str, str] = {
     "import_config": "Import settings",
     "ffmpeg_status": "FFmpeg Status",
     "ffmpeg_system": "System FFmpeg",
-    "ffmpeg_bundled_full": "Bundled FFmpeg and ffprobe (static-ffmpeg)",
+    "ffmpeg_bundled_full": "Bundled FFmpeg and ffprobe",
     "ffmpeg_bundled": (
         "Bundled FFmpeg without ffprobe — MKV thumbnails disabled. "
         "Full version will be downloaded in the background."

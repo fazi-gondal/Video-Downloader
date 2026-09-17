@@ -7,6 +7,9 @@ import shutil
 import sys
 from pathlib import Path
 
+from video_downloader.config.constants import BUNDLED_DENO_NAME
+from video_downloader.utils.bundled_tools import find_bundled_tool
+
 # Locations that GUI apps launched from Finder/Dock don't inherit
 _EXTRA_PATHS_DARWIN = (
     "/opt/homebrew/bin",
@@ -17,6 +20,15 @@ _EXTRA_PATHS_DARWIN = (
 
 # Runtimes supported by yt-dlp's EJS challenge solver, in priority order
 JS_RUNTIMES = ("deno", "node", "bun", "quickjs")
+
+
+def find_executable(name: str) -> Path | None:
+    """Return an app-bundled executable first, then a system PATH executable."""
+    if name == BUNDLED_DENO_NAME and (bundled := find_bundled_tool(BUNDLED_DENO_NAME)):
+        return bundled
+    if located := shutil.which(name):
+        return Path(located)
+    return None
 
 
 def ensure_common_paths() -> None:
@@ -41,7 +53,7 @@ def ensure_common_paths() -> None:
 def find_js_runtime() -> tuple[str, Path] | None:
     """Return the first available (name, path) JS runtime, or None."""
     for name in JS_RUNTIMES:
-        located = shutil.which(name)
+        located = find_executable(name)
         if located:
-            return name, Path(located)
+            return name, located
     return None

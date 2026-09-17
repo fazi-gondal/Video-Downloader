@@ -1,9 +1,9 @@
 """FFmpeg binary resolution and direct media conversion.
 
-Resolution order: system PATH first, then the binary bundled with the
-``imageio-ffmpeg`` package. Note that imageio-ffmpeg ships ffmpeg but NOT
-ffprobe, so probing degrades to extension/codec heuristics when only the
-bundled binary is available.
+Resolution order: app-bundled full toolchain, system PATH, cached
+``static-ffmpeg`` toolchain, then the binary bundled with the ``imageio-ffmpeg``
+package. Note that imageio-ffmpeg ships ffmpeg but NOT ffprobe, so probing
+degrades to extension/codec heuristics when only that fallback is available.
 """
 
 from __future__ import annotations
@@ -19,8 +19,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
+from video_downloader.config.constants import BUNDLED_FFMPEG_NAME, BUNDLED_FFPROBE_NAME
 from video_downloader.core.errors import ConversionError, DownloadCancelled, FFmpegNotFoundError
 from video_downloader.models.conversion import ConversionMode
+from video_downloader.utils.bundled_tools import find_bundled_tool
 
 logger = logging.getLogger(__name__)
 
@@ -91,6 +93,15 @@ class FFmpegService:
     def resolve(self) -> FFmpegLocation:
         with self._lock:
             if self._location is not None:
+                return self._location
+
+            bundled_ffmpeg = find_bundled_tool(BUNDLED_FFMPEG_NAME)
+            bundled_ffprobe = find_bundled_tool(BUNDLED_FFPROBE_NAME)
+            if bundled_ffmpeg and bundled_ffprobe:
+                self._location = FFmpegLocation(
+                    bundled_ffmpeg, bundled_ffprobe, "bundled_full"
+                )
+                logger.info("Using app-bundled ffmpeg toolchain at %s", bundled_ffmpeg.parent)
                 return self._location
 
             ffmpeg = shutil.which("ffmpeg")
