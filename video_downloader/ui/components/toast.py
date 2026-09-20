@@ -1,20 +1,21 @@
-"""Floating toast notifications rendered on the page overlay.
+"""Floating toast and SnackBar notifications.
 
-Custom implementation: in Flet 0.85 `page.show_dialog(SnackBar)` renders
-nothing, so the toast is a positioned overlay card that fades in, waits,
-fades out and removes itself.
+In Flet 1.0, ft.SnackBar is a DialogControl rendered via page.show_dialog().
 """
 
 from __future__ import annotations
 
 import asyncio
+import logging
 
 import flet as ft
 
 from video_downloader.ui import theme
 from video_downloader.ui.components.status_pill import PILL_GREEN
 
-_VISIBLE_SECONDS = 2.6
+logger = logging.getLogger(__name__)
+
+_VISIBLE_SECONDS = 3.0
 _FADE = ft.Animation(250, ft.AnimationCurve.EASE_OUT)
 
 
@@ -23,8 +24,39 @@ def show_toast(
     message: str,
     icon: ft.IconData = ft.Icons.CHECK_CIRCLE,
     color: str = PILL_GREEN,
+    duration_ms: int = 3500,
 ) -> None:
-    """Show a short floating confirmation near the bottom of the window."""
+    """Show a floating SnackBar confirmation near the bottom of the window."""
+    try:
+        snack = ft.SnackBar(
+            content=ft.Row(
+                [
+                    ft.Icon(icon, size=18, color=color),
+                    ft.Text(
+                        message,
+                        size=13.5,
+                        weight=ft.FontWeight.W_500,
+                        color=ft.Colors.ON_SURFACE,
+                        max_lines=2,
+                        overflow=ft.TextOverflow.ELLIPSIS,
+                        expand=True,
+                    ),
+                ],
+                spacing=10,
+                tight=False,
+            ),
+            bgcolor=ft.Colors.SURFACE_CONTAINER_HIGH,
+            behavior=ft.SnackBarBehavior.FLOATING,
+            duration=duration_ms,
+            show_close_icon=True,
+            close_icon_color=ft.Colors.ON_SURFACE_VARIANT,
+        )
+        page.show_dialog(snack)
+        return
+    except Exception:
+        logger.debug("page.show_dialog(SnackBar) failed, falling back to overlay", exc_info=True)
+
+    # Fallback to overlay card if show_dialog is unavailable
     card = ft.Container(
         content=ft.Row(
             [
@@ -54,7 +86,7 @@ def show_toast(
     async def run() -> None:
         page.overlay.append(wrapper)
         page.update()
-        await asyncio.sleep(0.05)  # let the 0-opacity frame land first
+        await asyncio.sleep(0.05)
         card.opacity = 1
         page.update()
         await asyncio.sleep(_VISIBLE_SECONDS)
@@ -66,3 +98,7 @@ def show_toast(
             page.update()
 
     page.run_task(run)
+
+
+# Alias for callers expecting show_snack_bar
+show_snack_bar = show_toast

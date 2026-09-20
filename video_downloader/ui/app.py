@@ -15,6 +15,7 @@ from video_downloader.config.constants import APP_TITLE
 from video_downloader.config.settings import AppSettings, SettingsRepository
 from video_downloader.core.event_bus import EventBus
 from video_downloader.core.events import (
+    ConversionFinished,
     FFmpegToolchainReady,
     TaskQueued,
     TaskStateChanged,
@@ -219,6 +220,7 @@ class AppShell:
         self.ctx.bus.attach_loop(asyncio.get_event_loop())
         self.ctx.bus.subscribe(TaskStateChanged, self._on_task_state_changed)
         self.ctx.bus.subscribe(TaskQueued, self._on_task_queued)
+        self.ctx.bus.subscribe(ConversionFinished, self._on_conversion_finished)
         self.ctx.bus.subscribe(FFmpegToolchainReady, self._on_ffmpeg_ready)
         page.run_task(self.ctx.bus.pump)
 
@@ -242,6 +244,8 @@ class AppShell:
     def _on_task_state_changed(self, event: TaskStateChanged) -> None:
         """Record history and notify when a download reaches a terminal state."""
         from video_downloader.models.download import DownloadState
+        from video_downloader.ui.components.status_pill import PILL_GREEN
+        from video_downloader.ui.components.toast import show_toast
 
         self._refresh_downloads_badge()
         task = self.ctx.download_manager.get(event.task_id)
@@ -250,6 +254,41 @@ class AppShell:
         self.ctx.history.record(task)
         if task.state is DownloadState.COMPLETED:
             self.ctx.notifications.notify(t("notify_done_title"), task.request.title)
+            show_toast(
+                self.page,
+                f"{t('notify_done_title')}: {task.request.title}",
+                icon=ft.Icons.CHECK_CIRCLE,
+                color=PILL_GREEN,
+            )
+        elif task.state is DownloadState.ERROR:
+            err_key = event.error_key or task.error
+            err = t(err_key) if err_key else t("error_download_failed")
+            show_toast(
+                self.page,
+                f"{task.request.title}: {err}",
+                icon=ft.Icons.ERROR_OUTLINE,
+                color=ft.Colors.ERROR,
+            )
+
+    def _on_conversion_finished(self, event: ConversionFinished) -> None:
+        """Notify when a file conversion completes or fails."""
+        from video_downloader.ui.components.status_pill import PILL_GREEN
+        from video_downloader.ui.components.toast import show_toast
+
+        if event.output_path:
+            show_toast(
+                self.page,
+                f"{t('conversion_done')}: {event.output_path.name}",
+                icon=ft.Icons.CHECK_CIRCLE,
+                color=PILL_GREEN,
+            )
+        elif event.error_key:
+            show_toast(
+                self.page,
+                f"{t('converter_title')}: {t(event.error_key)}",
+                icon=ft.Icons.ERROR_OUTLINE,
+                color=ft.Colors.ERROR,
+            )
 
     def _on_task_queued(self, event: TaskQueued) -> None:
         self._refresh_downloads_badge()

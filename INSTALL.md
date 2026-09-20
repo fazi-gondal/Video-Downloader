@@ -21,7 +21,7 @@ detects something is missing (Settings → Dependencies).
 ## Download and install the app
 
 Download the file for your platform from the
-[latest release](https://github.com/Wachu985/Video-Downloader/releases/latest).
+[latest release](https://github.com/fazi-gondal/Video-Downloader/releases/latest).
 Windows release installers bundle Python, yt-dlp, Deno, FFmpeg and ffprobe,
 so no separate runtime install is needed for normal YouTube downloads.
 
@@ -181,4 +181,4 @@ The `ffmpeg` chip in the sidebar shows the same status at all times. If a
 card is amber or red, click it: it brings you straight to the matching
 section of this guide.
 
-Problems? [Open an issue](https://github.com/Wachu985/Video-Downloader/issues).
+Problems? [Open an issue](https://github.com/fazi-gondal/Video-Downloader/issues).

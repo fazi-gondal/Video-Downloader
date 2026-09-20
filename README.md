@@ -144,7 +144,7 @@ Download the Windows x64 package from the [Latest Releases](../../releases/lates
 | Operating System | Download File | Installation Instructions |
 | :--- | :--- | :--- |
 | **Windows (x64)** | `VideoDownloader-windows-x64-setup.exe` | Run the installer. If SmartScreen appears, click **More info -> Run anyway**. |
-| **Windows (x64, compressed)** | `VideoDownloader-windows-x64-setup.7z` | Extract the archive, then run the setup `.exe` inside it. |
+| **Windows (x64, zipped)** | `VideoDownloader-windows-x64-setup.zip` | Extract the zip, then run the setup `.exe` inside it. |
 
 > Windows ARM64, macOS, and Linux release builds are currently disabled in CI.
 > The local build commands below remain useful for development on those platforms.
@@ -270,10 +270,10 @@ uv run flet build linux --yes
 
 ### Automated Release CI/CD
 
-The workflow in [`.github/workflows/build.yml`](.github/workflows/build.yml) builds the Windows x64 release package on every `v*` tag. The release uploads both the setup installer and a maximum-compression `.7z` archive containing the same setup `.exe`:
+The workflow in [`.github/workflows/build.yml`](.github/workflows/build.yml) builds the Windows x64 release package on every `v*` tag. The release uploads both the setup installer and a maximum-compression zip containing the same setup `.exe`:
 
 - `VideoDownloader-windows-x64-setup.exe`
-- `VideoDownloader-windows-x64-setup.7z`
+- `VideoDownloader-windows-x64-setup.zip`
 
 Windows ARM64, macOS, and Linux matrix entries are kept commented out in the workflow and can be re-enabled later.
 

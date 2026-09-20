@@ -10,7 +10,7 @@ The only tool you need is [uv](https://docs.astral.sh/uv/) — it manages
 Python 3.13 and every dependency automatically:
 
 ```bash
-git clone https://github.com/Wachu985/Video-Downloader.git
+git clone https://github.com/fazi-gondal/Video-Downloader.git
 cd Video-Downloader
 uv sync
 uv run python main.py          # desktop app
@@ -73,7 +73,7 @@ uv run mypy video_downloader
 
 ## Reporting bugs and requesting features
 
-Open an [issue](https://github.com/Wachu985/Video-Downloader/issues) with:
+Open an [issue](https://github.com/fazi-gondal/Video-Downloader/issues) with:
 
 - What you did, what you expected and what happened.
 - Your OS and app version (shown in the About screen).

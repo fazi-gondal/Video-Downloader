@@ -11,9 +11,89 @@ introduced each change.
 
 ### Added
 
-### Updated
+- In-app SnackBar notifications when downloads complete or fail, and when media conversions finish or fail.
 
 ### Fixed
+
+- Notifications not appearing on download or conversion completion: wired terminal download states (`TaskStateChanged`) and conversion events (`ConversionFinished`) to trigger in-app SnackBars, and upgraded `show_toast` to use native Flet 1.0 `ft.SnackBar` (`page.show_dialog()`).
+
+## [1.2.1] - 2026-09-17
+
+### Added
+
+- Maximum-compression `.zip` release archives (`VideoDownloader-windows-x64-setup.zip`)
+  generated in GitHub Actions CI for portable distribution of the installer.
+
+### Updated
+
+- Release packaging pipeline updated to distribute `.zip` installer archives.
+- Installation documentation (`README.md`) updated with `.zip` instructions.
+
+## [1.2.0] - 2026-09-17
+
+### Added
+
+- Video to MP3 conversion: Added direct `mp3` choice to video container chips
+  in the Converter view, enabling one-click audio extraction at 320 kbps (`libmp3lame`).
+- Conversion mode badge: Dynamic UI indicator showing whether the selected conversion
+  performs lossless remuxing, video re-encoding, or high-bitrate audio extraction.
+- Bundled FFmpeg toolchain: Support for detecting and prioritizing bundled FFmpeg/ffprobe
+  binaries under `assets/bin/windows-x64/` with automatic PATH injection and license notices.
+
+### Updated
+
+- Upgraded Flet framework to `v1.0.0` (`flet[cli,desktop]>=1.0.0`).
+- FFmpeg resolution hierarchy: bundled binaries take priority over system PATH,
+  `static-ffmpeg`, and `imageio-ffmpeg` fallbacks.
+- FFmpeg service improvements for media probing and conversion process management.
+
+### Fixed
+
+- Handled conversion edge cases and process termination gracefully in FFmpeg service.
+- Fixed container and codec mapping when converting heterogeneous media files.
+
+## [1.1.0] - 2026-08-24
+
+### Added
+
+- Concurrent fragments slider: Configurable multi-fragment downloading
+  (`concurrent_fragments`) in Settings to accelerate DASH and HLS stream downloads.
+- Enhanced format selection: Smart codec matching prioritizing VP9 video and Opus audio
+  streams when WebM/MKV containers are selected.
+- Subtitle and multi-audio track metadata pass-through from full media analysis.
+- Structured playlist subdirectories: Automatically group playlist downloads into
+  dedicated folders.
+- Comprehensive test coverage for configuration view, format builder, and settings.
+
+### Updated
+
+- Startup performance: Deferred heavy service resolution and initializations to
+  `after_first_paint` for a significantly faster cold startup.
+
+### Fixed
+
+- Resolved Ruff lint errors (`F821`, `I001`) across UI and service modules.
+
+## [1.0.0] - 2026-08-16
+
+### Added
+
+- Complete multi-audio track support: Detect, select, and merge multiple audio tracks
+  using yt-dlp and FFmpeg.
+- Resilient download manager with concurrency throttling, live progress, speed, ETA,
+  and task cancellation.
+- Media converter for remuxing and transcoding local audio and video files.
+- Modern desktop UI powered by Flet with Nocturnal Studio dark and light themes,
+  custom frameless window controls, and responsive navigation.
+- SQLite-backed download history with filtering and search capabilities.
+- Advanced settings: browser cookie extraction (Chrome, Firefox, Edge, etc.), proxy
+  configuration, and custom request headers.
+- Native Windows x64 Inno Setup installer packaging.
+- Startup error diagnostics displaying helpful GUI error dialogs upon fatal boot failure.
+
+### Updated
+
+- Upgraded Flet to v0.86.5.
 
 ## [0.1.3] - 2026-07-15
 
@@ -49,13 +129,13 @@ introduced each change.
 ### Added
 
 - About screen with its own sidebar entry: app logo, version, description,
-  developer credit (Wachu985), tech stack chips and clickable links to the
+  developer credit (Fazi Gondal), tech stack chips and clickable links to the
   GitHub profile, LinkedIn, personal website, source repository and issue
   tracker (LinkedIn/website buttons appear once their URLs are set in
   `config/constants.py`).
 - Open-source licensing: MIT `LICENSE` and `CONTRIBUTING.md` (setup,
   conventions and PR workflow); the About screen shows a clickable
-  "© 2026 Wachu985 · MIT License" notice linking to the license on GitHub.
+  "© 2026 Faizan Gondal · MIT License" notice linking to the license on GitHub.
 - Pull request template with a quality checklist, and a CI workflow that
   runs the full test suite, ruff and mypy (with uv caching) on every PR
   and push to main; the release workflow now gates the platform builds
@@ -149,7 +229,9 @@ introduced each change.
 - AppImage packaging: `appimagetool` moved repositories; pinned to release
   1.9.1 (`7b77f21`).
 
-[Unreleased]: https://github.com/Wachu985/Video-Downloader/compare/v0.1.3...HEAD
-[0.1.3]: https://github.com/Wachu985/Video-Downloader/compare/v0.1.2...v0.1.3
-[0.1.2]: https://github.com/Wachu985/Video-Downloader/compare/v0.1.0...v0.1.2
-[0.1.0]: https://github.com/Wachu985/Video-Downloader/releases/tag/v0.1.0
+[Unreleased]: https://github.com/fazi-gondal/Video-Downloader/compare/v1.2.1...HEAD
+[1.2.1]: https://github.com/fazi-gondal/Video-Downloader/compare/v1.2.0...v1.2.1
+[1.2.0]: https://github.com/fazi-gondal/Video-Downloader/compare/v1.1.0...v1.2.0
+[1.1.0]: https://github.com/fazi-gondal/Video-Downloader/compare/v1.0.0...v1.1.0
+[1.0.0]: https://github.com/fazi-gondal/Video-Downloader/compare/v0.1.3...v1.0.0
+
