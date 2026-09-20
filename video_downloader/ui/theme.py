@@ -117,7 +117,7 @@ def current(page: ft.Page) -> Palette:
 def headline_xl(color: str = ft.Colors.ON_SURFACE) -> ft.TextStyle:
     return ft.TextStyle(
         font_family=FONT_HEADLINE, size=28, weight=ft.FontWeight.W_700,
-        letter_spacing=-0.5, color=color,
+        letter_spacing=0, color=color,
     )
 
 
