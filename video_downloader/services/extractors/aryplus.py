@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
 from typing import Any
 
@@ -78,7 +79,8 @@ class AryPlusIE(AryPlusBaseIE):
 
         # Platform 2: Dailymotion
         if platform_id == "2":
-            return self.url_result(f"https://www.dailymotion.com/video/{video_id}", ie="Dailymotion")
+            dm_url = f"https://www.dailymotion.com/video/{video_id}"
+            return self.url_result(dm_url, ie="Dailymotion")
 
         # Platform 3: ARY Custom CDN
         data = self._call_api(
@@ -134,18 +136,14 @@ class AryPlusIE(AryPlusBaseIE):
         duration_val = episode.get("videoLength")
         duration = None
         if duration_val:
-            try:
+            with contextlib.suppress(ValueError, TypeError):
                 duration = int(float(duration_val))
-            except (ValueError, TypeError):
-                pass
 
         ep_number_val = episode.get("videoEpNumber")
         ep_number = None
         if ep_number_val is not None:
-            try:
+            with contextlib.suppress(ValueError, TypeError):
                 ep_number = int(ep_number_val)
-            except (ValueError, TypeError):
-                pass
 
         return {
             "id": video_id,

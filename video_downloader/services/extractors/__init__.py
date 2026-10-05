@@ -24,6 +24,7 @@ def register_custom_extractors() -> None:
 
     try:
         import yt_dlp.extractor
+
         from video_downloader.services.extractors.aryplus import AryPlusIE, AryPlusSeriesIE
 
         yt_dlp.extractor.import_extractors()
