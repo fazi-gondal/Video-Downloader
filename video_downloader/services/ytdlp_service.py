@@ -88,6 +88,10 @@ class YtdlpService:
     def _extract(url: str, opts: dict[str, Any]) -> dict[str, Any]:
         import yt_dlp
 
+        from video_downloader.services.extractors import register_custom_extractors
+
+        register_custom_extractors()
+
         try:
             with yt_dlp.YoutubeDL(opts) as ydl:
                 info = ydl.extract_info(url, download=False)
@@ -119,6 +123,10 @@ class YtdlpService:
     def _download_single(self, task: DownloadTask, bus: EventBus) -> Path:
         """Standard single yt-dlp call for non-multi-audio downloads."""
         import yt_dlp
+
+        from video_downloader.services.extractors import register_custom_extractors
+
+        register_custom_extractors()
 
         settings = self._settings_provider()
         opts = format_builder.build_ydl_opts(

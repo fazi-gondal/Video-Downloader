@@ -9,13 +9,26 @@ introduced each change.
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-10-05
+
 ### Added
 
-- In-app SnackBar notifications when downloads complete or fail, and when media conversions finish or fail.
+- **ARY Plus download support**: Download video episodes and full drama series from
+  [aryplus.tv](https://aryplus.tv) at multiple quality tiers (240p, 360p, 480p, 720p,
+  1080p, 4K) via a custom `yt-dlp` extractor (`AryPlusIE` / `AryPlusSeriesIE`).
+  - Supports transparent delegation to YouTube (platform 1) and Dailymotion (platform 2)
+    when the episode is hosted on those platforms.
+  - Paginated series playlist extraction: fetches all episodes across multiple pages.
+  - User-friendly error raised for DRM-protected content instead of a silent failure.
+- In-app SnackBar notifications when downloads complete or fail, and when media
+  conversions finish or fail.
 
 ### Fixed
 
-- Notifications not appearing on download or conversion completion: wired terminal download states (`TaskStateChanged`) and conversion events (`ConversionFinished`) to trigger in-app SnackBars, and upgraded `show_toast` to use native Flet 1.0 `ft.SnackBar` (`page.show_dialog()`).
+- Notifications not appearing on download or conversion completion: wired terminal
+  download states (`TaskStateChanged`) and conversion events (`ConversionFinished`) to
+  trigger in-app SnackBars, and upgraded `show_toast` to use native Flet 1.0
+  `ft.SnackBar` (`page.show_dialog()`).
 
 ## [1.2.1] - 2026-09-17
 
@@ -229,9 +242,12 @@ introduced each change.
 - AppImage packaging: `appimagetool` moved repositories; pinned to release
   1.9.1 (`7b77f21`).
 
-[Unreleased]: https://github.com/fazi-gondal/Video-Downloader/compare/v1.2.1...HEAD
+
+[Unreleased]: https://github.com/fazi-gondal/Video-Downloader/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/fazi-gondal/Video-Downloader/compare/v1.2.1...v1.3.0
 [1.2.1]: https://github.com/fazi-gondal/Video-Downloader/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/fazi-gondal/Video-Downloader/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/fazi-gondal/Video-Downloader/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/fazi-gondal/Video-Downloader/compare/v0.1.3...v1.0.0
+
 

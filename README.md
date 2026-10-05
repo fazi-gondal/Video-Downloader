@@ -51,7 +51,7 @@
 
 ## Overview
 
-**Video Downloader** is a modern, cross-platform desktop application designed to capture, organize, and convert video and audio from thousands of platforms (YouTube, Vimeo, Twitter/X, TikTok, Reddit, Instagram, Twitch, Dailymotion, Facebook, Bilibili, and many more). 
+**Video Downloader** is a modern, cross-platform desktop application designed to capture, organize, and convert video and audio from thousands of platforms (YouTube, Vimeo, Twitter/X, TikTok, Reddit, Instagram, Twitch, Dailymotion, Facebook, Bilibili, **ARY Plus**, and many more). 
 
 Unlike basic wrappers, Video Downloader features:
 - A custom **Nocturnal Studio** design system with fluent dark/light modes and frameless window controls.
@@ -235,7 +235,7 @@ Flet 1.0 API, icon, example, and CLI metadata through the Flet MCP server.
 Run the automated test suite and code quality checkers:
 
 ```bash
-# Run unit and integration tests (102 tests)
+# Run unit and integration tests (109 tests)
 uv run pytest
 
 # Check code style with Ruff
@@ -282,8 +282,8 @@ Windows ARM64, macOS, and Linux matrix entries are kept commented out in the wor
 
 ```bash
 # Create and push a version tag
-git tag v1.2.1
-git push origin v1.2.1
+git tag v1.3.0
+git push origin v1.3.0
 ```
 
 ---
