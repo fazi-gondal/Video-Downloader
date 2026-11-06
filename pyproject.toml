@@ -15,7 +15,7 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = ["flet-mcp>=1.0.0", "mypy>=2.2.0", "pytest>=9.1.1", "ruff>=0.15.21"]
+dev = ["flet-mcp>=1.1.0", "mypy>=2.2.0", "pytest>=9.1.1", "ruff>=0.15.21"]
 
 # Packaging metadata for `flet build <platform>`
 [tool.flet]
